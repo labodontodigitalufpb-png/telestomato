@@ -221,61 +221,20 @@
             <div id="roleGuide" class="side-note hidden" style="margin-top:18px;"></div>
 
             <div class="screen-nav">
-              <button id="navDentistHome" class="screen-btn" type="button" data-page="dentist-home" data-roles="DENTIST,ADMIN" onclick="setAppPage('dentist-home')"><span class="screen-btn-icon">⌂</span><span class="screen-btn-label"><strong>Painel</strong><span>Profissional</span></span></button>
+              <button id="navDentistHome" class="screen-btn" type="button" data-page="case-manage" data-roles="DENTIST,ADMIN" onclick="setAppPage('case-manage')"><span class="screen-btn-icon">⌂</span><span class="screen-btn-label"><strong>Painel</strong><span>Profissional</span></span></button>
               <button id="navCreateCase" class="screen-btn" type="button" data-page="case-create" data-roles="DENTIST,ADMIN" onclick="setAppPage('case-create')"><span class="screen-btn-icon">+</span><span class="screen-btn-label"><strong>Novo caso</strong><span>Relato</span></span></button>
               <button id="navCaseManage" class="screen-btn" type="button" data-page="case-manage" data-roles="DENTIST,ADMIN" onclick="setAppPage('case-manage')"><span class="screen-btn-icon">◫</span><span class="screen-btn-label"><strong>Acompanhamento</strong><span>Pacientes</span></span></button>
-              <button id="navTeleHome" class="screen-btn" type="button" data-page="tele-home" data-roles="TELECONSULTANT,ADMIN" onclick="setAppPage('tele-home')"><span class="screen-btn-icon">◎</span><span class="screen-btn-label"><strong>Painel</strong><span>Teleconsultor</span></span></button>
+              <button id="navTeleHome" class="screen-btn" type="button" data-page="tele" data-roles="TELECONSULTANT,ADMIN" onclick="setAppPage('tele')"><span class="screen-btn-icon">◎</span><span class="screen-btn-label"><strong>Painel</strong><span>Teleconsultor</span></span></button>
               <button id="navTele" class="screen-btn" type="button" data-page="tele" data-roles="TELECONSULTANT,ADMIN" onclick="setAppPage('tele')"><span class="screen-btn-icon">◎</span><span class="screen-btn-label"><strong>Resposta</strong><span>Casos</span></span></button>
-              <button id="navPathologyHome" class="screen-btn" type="button" data-page="pathology-home" data-roles="PATHOLOGIST,ADMIN" onclick="setAppPage('pathology-home')"><span class="screen-btn-icon">◉</span><span class="screen-btn-label"><strong>Painel</strong><span>Patologista</span></span></button>
+              <button id="navPathologyHome" class="screen-btn" type="button" data-page="pathology" data-roles="PATHOLOGIST,ADMIN" onclick="setAppPage('pathology')"><span class="screen-btn-icon">◉</span><span class="screen-btn-label"><strong>Painel</strong><span>Patologista</span></span></button>
               <button id="navPathology" class="screen-btn" type="button" data-page="pathology" data-roles="PATHOLOGIST,ADMIN" onclick="setAppPage('pathology')"><span class="screen-btn-icon">◉</span><span class="screen-btn-label"><strong>Laudo</strong><span>Histopatologia</span></span></button>
-              <button id="navRegHome" class="screen-btn" type="button" data-page="reg-home" data-roles="REGULATOR,ADMIN" onclick="setAppPage('reg-home')"><span class="screen-btn-icon">↗</span><span class="screen-btn-label"><strong>Painel</strong><span>Regulador</span></span></button>
+              <button id="navRegHome" class="screen-btn" type="button" data-page="regulation" data-roles="REGULATOR,ADMIN" onclick="setAppPage('regulation')"><span class="screen-btn-icon">↗</span><span class="screen-btn-label"><strong>Painel</strong><span>Regulador</span></span></button>
               <button id="navRegulation" class="screen-btn" type="button" data-page="regulation" data-roles="REGULATOR,ADMIN" onclick="setAppPage('regulation')"><span class="screen-btn-icon">↗</span><span class="screen-btn-label"><strong>Casos suspeitos</strong><span>Detalhes</span></span></button>
               <button id="navChat" class="screen-btn" type="button" data-page="chat" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="setAppPage('chat')"><span class="screen-btn-icon">✉</span><span class="screen-btn-label"><strong>Chat</strong><span>Dialogo</span></span></button>
               <button id="navNotifications" class="screen-btn" type="button" data-page="notifications" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="setAppPage('notifications')"><span class="screen-btn-icon">!</span><span class="screen-btn-label"><strong>Avisos</strong><span>Notificacoes</span></span></button>
             </div>
 
-            <div id="screenLabel" class="screen-label">Escolha um modulo para continuar.</div>
-
-            <div class="screen-hero">
-              <div class="screen-hero-card accent">
-                <div id="screenIcon" class="screen-hero-icon">⌂</div>
-                <h3 id="screenTitle">Inicio</h3>
-                <p id="screenSubtitle">Escolha um modulo para continuar.</p>
-              </div>
-              <div class="screen-hero-card">
-                <h3>Contexto do modulo</h3>
-                <p id="screenContext">A interface organiza o fluxo clinico por perfil, para que cada usuario veja primeiro o que realmente precisa fazer.</p>
-                <div>
-                  <div class="screen-meta">
-                    <div class="screen-meta-item">
-                      <span>Modulo atual</span>
-                      <strong id="screenMetaPage">Inicio</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
             <div class="module-grid">
-              <section class="module-card" data-page="dentist-home" data-roles="DENTIST,ADMIN">
-                <h3>Painel do profissional</h3>
-                <p>Acesso rápido para relatar um novo caso, acompanhar os pacientes enviados e conversar com a equipe.</p>
-              </section>
-
-              <section class="module-card" data-page="tele-home" data-roles="TELECONSULTANT,ADMIN">
-                <h3>Painel da teleconsultoria</h3>
-                <p>Receba novos casos, acesse os casos já atribuídos e mantenha a comunicação clínica pelo chat.</p>
-              </section>
-
-              <section class="module-card" data-page="pathology-home" data-roles="PATHOLOGIST,ADMIN">
-                <h3>Painel da patologia</h3>
-                <p>Acesse os casos completos por nome do paciente, revise as mídias e envie o laudo histopatológico.</p>
-              </section>
-
-              <section class="module-card" data-page="reg-home" data-roles="REGULATOR,ADMIN">
-                <h3>Painel da regulação</h3>
-                <p>Visualize a fila de suspeitos, abra os casos detalhados e conclua a regulação assistencial.</p>
-              </section>
-
               <section class="module-card" data-page="session" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN">
                 <h3>Painel de sessao</h3>
                 <p>Atualize os dados do usuario autenticado e confirme o perfil ativo antes de seguir para os proximos modulos.</p>
@@ -383,7 +342,7 @@
                   </div>
                   <div>
                     <label for="case_create_media_type">Tipo de midia</label>
-                    <select id="case_create_media_type">
+                    <select id="case_create_media_type" multiple size="4">
                       <option value="image">Imagem</option>
                       <option value="exam">Exame</option>
                       <option value="video">Video</option>
@@ -402,9 +361,14 @@
                     <label for="case_create_media_file_3">Midia 3</label>
                     <input id="case_create_media_file_3" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
                   </div>
+                  <div>
+                    <label for="case_create_media_file_4">Midia 4</label>
+                    <input id="case_create_media_file_4" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
                 </div>
                 <div class="actions">
                   <button class="primary" type="button" onclick="createCase(true)">Criar e submeter</button>
+                  <button class="soft" type="button" onclick="updateCase()">Salvar edicao do caso</button>
                 </div>
               </section>
 
@@ -424,31 +388,8 @@
                   <input id="case_lookup_id" type="hidden" />
                   <div class="actions">
                     <button class="soft" type="button" onclick="loadCaseById()">Abrir caso</button>
-                    <button class="soft" type="button" onclick="submitCase()">Submeter caso</button>
-                  </div>
-                  <div>
-                    <label for="case_media_type">Tipo de midia</label>
-                    <select id="case_media_type">
-                      <option value="image">Imagem</option>
-                      <option value="exam">Exame</option>
-                      <option value="video">Video</option>
-                      <option value="consent">Consentimento</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label for="case_media_file_1">Imagem 1</label>
-                    <input id="case_media_file_1" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
-                  </div>
-                  <div>
-                    <label for="case_media_file_2">Imagem 2</label>
-                    <input id="case_media_file_2" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
-                  </div>
-                  <div>
-                    <label for="case_media_file_3">Imagem 3</label>
-                    <input id="case_media_file_3" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
                   </div>
                   <div class="actions">
-                    <button class="soft" type="button" onclick="uploadCaseMedia()">Anexar midia</button>
                     <button class="soft" type="button" onclick="loadCaseNotifications()">Atualizar avisos do caso</button>
                   </div>
                   <div class="context-box">
@@ -582,7 +523,7 @@
                   </div>
                   <div>
                     <label for="tele_case_select">Selecionar caso pelo paciente</label>
-                    <select id="tele_case_select" onchange="syncCaseSelection('tele')">
+                    <select id="tele_case_select" onchange="onCaseSelectAndLoad('tele')">
                       <option value="">Selecione um caso</option>
                     </select>
                   </div>
@@ -668,6 +609,7 @@
                   </div>
                   <div class="actions">
                     <button class="primary" type="button" onclick="teleAnswerCase()">Enviar resposta</button>
+                    <button class="soft" type="button" onclick="teleAnswerCase()">Salvar edicao da teleconsultoria</button>
                   </div>
                 </div>
               </section>
@@ -682,7 +624,7 @@
                   </div>
                   <div>
                     <label for="path_case_select">Selecionar caso pelo paciente</label>
-                    <select id="path_case_select" onchange="syncCaseSelection('path')">
+                    <select id="path_case_select" onchange="onCaseSelectAndLoad('path')">
                       <option value="">Selecione um caso</option>
                     </select>
                   </div>
@@ -740,21 +682,23 @@
                   </div>
                   <div class="actions">
                     <button class="primary" type="button" onclick="submitPathologyReport()">Enviar laudo</button>
+                    <button class="soft" type="button" onclick="submitPathologyReport()">Salvar edicao do laudo</button>
                   </div>
                 </div>
               </section>
 
               <section class="module-card" data-page="regulation" data-roles="REGULATOR,ADMIN">
                 <h3>Telerregulacao</h3>
-                <p>Consulte a fila de casos suspeitos, assuma o caso e conclua a regulacao.</p>
+                <p>Consulte a fila de casos suspeitos, assuma o caso e atualize a regulacao ao longo do acompanhamento.</p>
                 <div class="stack">
+                  <p class="context-text">Fluxo recomendado: assuma o caso, salve atualizacoes parciais quantas vezes precisar (status em analise) e conclua apenas quando o acompanhamento estiver completo.</p>
                   <div class="actions">
                     <button class="primary" type="button" onclick="loadRegulationQueue()">Ver fila</button>
                     <button class="soft" type="button" onclick="loadRegulationCaseContext()">Abrir caso regulatorio</button>
                   </div>
                   <div>
                     <label for="reg_case_select">Selecionar caso suspeito pelo paciente</label>
-                    <select id="reg_case_select" onchange="syncCaseSelection('reg')">
+                    <select id="reg_case_select" onchange="onCaseSelectAndLoad('reg')">
                       <option value="">Selecione um caso</option>
                     </select>
                   </div>
@@ -765,6 +709,10 @@
                       <div class="context-item">
                         <span>Paciente</span>
                         <strong id="reg_ctx_patient">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Telefone do paciente</span>
+                        <strong id="reg_ctx_patient_phone">-</strong>
                       </div>
                       <div class="context-item">
                         <span>Status clinico</span>
@@ -805,27 +753,46 @@
                     </div>
                   </div>
                   <div>
-                    <label for="reg_status">Status da regulacao</label>
-                    <select id="reg_status">
-                      <option value="completed">Concluida</option>
-                      <option value="in_review">Em analise</option>
-                      <option value="pending">Pendente</option>
-                    </select>
-                  </div>
-                  <div>
                     <label for="reg_notes">Notas regulatorias</label>
                     <textarea id="reg_notes" placeholder="Descreva prioridade, fluxo e orientacoes regulatorias."></textarea>
                   </div>
+                  <div>
+                    <label for="reg_microscopic_report_date">Data do laudo microscópico</label>
+                    <input id="reg_microscopic_report_date" type="date" />
+                  </div>
+                  <div>
+                    <label for="reg_followup_1m">Após 1 mês: já passou pelo cirurgião de cabeça e pescoço?</label>
+                    <select id="reg_followup_1m">
+                      <option value="">Selecione</option>
+                      <option value="true">Sim</option>
+                      <option value="false">Não</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="reg_followup_3m">Após 3 meses: já fez o tratamento inicial?</label>
+                    <select id="reg_followup_3m">
+                      <option value="">Selecione</option>
+                      <option value="true">Sim</option>
+                      <option value="false">Não</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="reg_followup_6m_status">Após 6 meses: como se encontra?</label>
+                    <textarea id="reg_followup_6m_status" placeholder="Descreva a evolução clínica no acompanhamento de 6 meses."></textarea>
+                  </div>
+                  <div>
+                    <label for="reg_followup_barriers">Principais barreiras</label>
+                    <textarea id="reg_followup_barriers" placeholder="Registre barreiras de acesso, adesão, deslocamento, comunicação e outras."></textarea>
+                  </div>
                   <div class="actions">
                     <button class="soft" type="button" onclick="takeRegulationCase()">Assumir caso</button>
+                    <button class="soft" type="button" onclick="saveRegulationProgress()">Salvar atualizacao (em analise)</button>
                     <button class="soft" type="button" onclick="completeRegulation()">Concluir regulacao</button>
                   </div>
                 </div>
               </section>
             </div>
           </section>
-
-          <div id="result" class="result"><span class="result-title">Retorno da aplicacao</span>Aguardando acao...</div>
 
           <div class="bottom-dock">
             <button id="dockHome" class="dock-btn" type="button" data-page="dentist-home" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="openWorkspace()"><span>⌂</span><span>Painel</span></button>

@@ -75,7 +75,11 @@ def complete_regulation(
     case = db.query(ClinicalCase).filter(ClinicalCase.id == case_id).first()
     if not case:
         raise HTTPException(status_code=404, detail="Caso não encontrado")
-    if case.regulation_status not in {RegulationStatus.pending, RegulationStatus.in_review}:
+    if case.regulation_status not in {
+        RegulationStatus.pending,
+        RegulationStatus.in_review,
+        RegulationStatus.completed,
+    }:
         raise HTTPException(status_code=400, detail="Caso não está disponível para conclusão regulatória")
 
     if role_str(current_user) != "ADMIN" and case.regulator_user_id not in {None, current_user.id}:
@@ -84,16 +88,42 @@ def complete_regulation(
     case.regulator_user_id = current_user.id
     case.regulation_status = payload.regulation_status
     case.regulation_notes = payload.regulation_notes
+    case.microscopic_report_date = payload.microscopic_report_date
+    case.followup_1m_head_neck_seen = payload.followup_1m_head_neck_seen
+    case.followup_3m_initial_treatment_done = payload.followup_3m_initial_treatment_done
+    case.followup_6m_status = payload.followup_6m_status
+    case.followup_main_barriers = payload.followup_main_barriers
     case.regulated_at = datetime.utcnow()
 
-    create_notification(
-        db,
-        user_id=case.dentist_user_id,
-        title=f"Telerregulação atualizada no caso #{case.id}",
-        body=payload.regulation_notes[:180],
-        notification_type=NotificationType.regulation_update,
-        case_id=case.id,
+    is_completed = payload.regulation_status == RegulationStatus.completed
+    notification_title = (
+        f"Telerregulação concluída no caso #{case.id}"
+        if is_completed
+        else f"Telerregulação atualizada no caso #{case.id}"
     )
+    notification_body = (
+        "A telerregulação foi concluída. Acesse o caso para revisar o desfecho final."
+        if is_completed
+        else "O telerregulador registrou uma atualização de acompanhamento. Acesse o caso para ver os detalhes."
+    )
+
+    notes_preview = (payload.regulation_notes or "").strip()
+    if notes_preview:
+        notification_body = f"{notification_body} Notas: {notes_preview[:140]}"
+
+    notification_user_ids = {case.dentist_user_id}
+    if case.assigned_to_user_id:
+        notification_user_ids.add(case.assigned_to_user_id)
+
+    for user_id in notification_user_ids:
+        create_notification(
+            db,
+            user_id=user_id,
+            title=notification_title,
+            body=notification_body,
+            notification_type=NotificationType.regulation_update,
+            case_id=case.id,
+        )
 
     db.commit()
     db.refresh(case)

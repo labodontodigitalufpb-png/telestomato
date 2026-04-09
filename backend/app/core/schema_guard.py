@@ -18,6 +18,11 @@ REQUIRED_CASE_COLUMNS = {
     "regulator_user_id",
     "regulation_status",
     "regulation_notes",
+    "microscopic_report_date",
+    "followup_1m_head_neck_seen",
+    "followup_3m_initial_treatment_done",
+    "followup_6m_status",
+    "followup_main_barriers",
     "submitted_at",
     "assigned_at",
     "answered_at",
@@ -41,4 +46,3 @@ def get_schema_issue(bind: Session | Engine) -> str | None:
         )
 
     return None
-

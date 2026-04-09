@@ -13,7 +13,7 @@ from app.models.user import User
 from app.models.case import ClinicalCase, CaseStatus
 from app.models.media import CaseMedia
 from app.models.media import MediaType
-from app.schemas.case import CaseCreate, CaseOut, CaseOutPublic
+from app.schemas.case import CaseCreate, CaseOut, CaseOutPublic, CaseUpdate
 from app.services.case_media import (
     create_media_record,
     ensure_media_upload_permission,
@@ -112,6 +112,42 @@ def get_case(
     return case
 
 
+@router.put("/{case_id}", response_model=CaseOut)
+def update_case(
+    case_id: int,
+    payload: CaseUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    case = get_case_or_404(db, case_id)
+
+    if role_str(current_user) != "ADMIN" and case.dentist_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sem permissão para editar este caso",
+        )
+
+    if case.status == CaseStatus.closed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Casos fechados não podem ser editados",
+        )
+
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Nenhum campo enviado para atualização",
+        )
+
+    for field, value in data.items():
+        setattr(case, field, value)
+
+    db.commit()
+    db.refresh(case)
+    return case
+
+
 @router.get("/{case_id}/media/{media_id}/file")
 def get_case_media_file(
     case_id: int,
@@ -161,6 +197,17 @@ def submit_case(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Caso em status inválido para submissão: {case.status.value}",
+        )
+
+    media_count = (
+        db.query(CaseMedia.id)
+        .filter(CaseMedia.case_id == case.id)
+        .count()
+    )
+    if media_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Anexe ao menos uma midia antes de submeter o caso.",
         )
 
     case.status = CaseStatus.submitted

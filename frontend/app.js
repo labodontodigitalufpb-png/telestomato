@@ -14,7 +14,9 @@
     }
 
     function showResult(data) {
-      $("result").textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+      const el = $("result");
+      if (!el) return;
+      el.textContent = typeof data === "string" ? data : JSON.stringify(data, null, 2);
     }
 
     function setText(id, value) {
@@ -328,6 +330,7 @@
 
     function fillRegulationCaseContext(data) {
       setText("reg_ctx_patient", data?.patient_name);
+      setText("reg_ctx_patient_phone", data?.patient_phone);
       setText("reg_ctx_case_status", data?.status);
       setText("reg_ctx_reg_status", data?.regulation_status);
       setText("reg_ctx_malignant", data?.consultant_is_malignant == null ? "-" : (data.consultant_is_malignant ? "Sim" : "Nao"));
@@ -352,8 +355,12 @@
 
       if (!data) return;
       $("reg_case_id").value = data.id || $("reg_case_id").value;
-      if (data.regulation_status) $("reg_status").value = data.regulation_status;
       if (data.regulation_notes) $("reg_notes").value = data.regulation_notes;
+      $("reg_microscopic_report_date").value = data.microscopic_report_date || "";
+      $("reg_followup_1m").value = data.followup_1m_head_neck_seen == null ? "" : String(data.followup_1m_head_neck_seen);
+      $("reg_followup_3m").value = data.followup_3m_initial_treatment_done == null ? "" : String(data.followup_3m_initial_treatment_done);
+      $("reg_followup_6m_status").value = data.followup_6m_status || "";
+      $("reg_followup_barriers").value = data.followup_main_barriers || "";
     }
 
     function fillCaseDetailContext(data) {
@@ -407,6 +414,17 @@
             body: data?.consultant_is_malignant == null ? "" : (data.consultant_is_malignant ? "Sim" : "Nao"),
           },
           { title: "Notas regulatorias", body: data?.regulation_notes },
+          { title: "Data do laudo microscopico", body: data?.microscopic_report_date },
+          {
+            title: "Follow-up 1 mes (cabeca e pescoco)",
+            body: data?.followup_1m_head_neck_seen == null ? "" : (data.followup_1m_head_neck_seen ? "Sim" : "Nao"),
+          },
+          {
+            title: "Follow-up 3 meses (tratamento inicial)",
+            body: data?.followup_3m_initial_treatment_done == null ? "" : (data.followup_3m_initial_treatment_done ? "Sim" : "Nao"),
+          },
+          { title: "Follow-up 6 meses", body: data?.followup_6m_status },
+          { title: "Principais barreiras", body: data?.followup_main_barriers },
         ],
         "Sem atualizacao regulatoria no momento."
       );
@@ -419,6 +437,37 @@
         ],
         "Nenhum laudo histopatológico registrado ainda."
       );
+    }
+
+    function fillCaseFormForEdit(data) {
+      if (!data) return;
+      const setValue = (id, value) => {
+        const el = $(id);
+        if (!el) return;
+        el.value = value == null ? "" : String(value);
+      };
+
+      setValue("case_dentist_state", data.dentist_state || "");
+      setValue("case_dentist_municipality", data.dentist_municipality || "");
+      setValue("case_unit_name", data.unit_name || "");
+      setValue("case_patient_name", data.patient_name || "");
+      setValue("case_sus_card", data.sus_card || "");
+      setValue("case_patient_phone", data.patient_phone || "");
+      setValue("case_patient_sex", data.patient_sex || "");
+      setValue("case_patient_age", data.patient_age ?? "");
+      setValue("case_patient_city", data.patient_city || "");
+      setValue("case_patient_state", data.patient_state || "");
+      setValue("case_lesion_topography", data.lesion_topography || "");
+      setValue("case_is_biopsied", data.is_biopsied ? "true" : "false");
+      setValue("case_chief_complaint", data.chief_complaint || "");
+      setValue("case_hpi", data.hpi || "");
+      setValue("case_medical_history", data.medical_history || "");
+      setValue("case_dental_history", data.dental_history || "");
+      setValue("case_habits", data.habits || "");
+      setValue("case_meds_history", data.meds_history || "");
+      setValue("case_vitals", data.vitals || "");
+      setValue("case_oral_description", data.oral_description || "");
+      setValue("case_dentist_hypotheses", data.dentist_hypotheses || "");
     }
 
     function fillPathologyCaseContext(data) {
@@ -462,6 +511,14 @@
         .filter(Boolean);
     }
 
+    function getSelectedValues(selectId) {
+      const select = $(selectId);
+      if (!select) return [];
+      return Array.from(select.selectedOptions || [])
+        .map((option) => option.value)
+        .filter(Boolean);
+    }
+
     async function uploadMediaBatch(caseId, mediaType, files) {
       const formData = new FormData();
       formData.append("media_type", mediaType);
@@ -470,6 +527,35 @@
         method: "POST",
         body: formData
       });
+    }
+
+    async function uploadSingleMedia(caseId, mediaType, file) {
+      const formData = new FormData();
+      formData.append("media_type", mediaType);
+      formData.append("file", file);
+      return apiFetch("/cases/" + caseId + "/media", {
+        method: "POST",
+        body: formData
+      });
+    }
+
+    async function uploadCreateMedia(caseId, mediaTypes, files) {
+      if (!files.length) return [];
+      if (!mediaTypes.length) throw new Error("Selecione ao menos um tipo de midia.");
+
+      if (mediaTypes.length === 1) {
+        return [await uploadMediaBatch(caseId, mediaTypes[0], files)];
+      }
+
+      if (mediaTypes.length !== files.length) {
+        throw new Error(
+          "Selecione 1 tipo para todos os arquivos ou a mesma quantidade de tipos e midias."
+        );
+      }
+
+      return Promise.all(
+        files.map((file, index) => uploadSingleMedia(caseId, mediaTypes[index], file))
+      );
     }
 
     async function loadCaseNotifications() {
@@ -515,10 +601,10 @@
     let currentAppPage = "session";
 
     function getDefaultPageForRole(role) {
-      if (role === "DENTIST" || role === "ADMIN") return "dentist-home";
-      if (role === "TELECONSULTANT") return "tele-home";
-      if (role === "PATHOLOGIST") return "pathology-home";
-      if (role === "REGULATOR") return "reg-home";
+      if (role === "DENTIST" || role === "ADMIN") return "case-manage";
+      if (role === "TELECONSULTANT") return "tele";
+      if (role === "PATHOLOGIST") return "pathology";
+      if (role === "REGULATOR") return "regulation";
       return "session";
     }
 
@@ -935,6 +1021,21 @@
       setCaseSelection(Number(select.value));
     }
 
+    function onCaseSelectAndLoad(kind) {
+      syncCaseSelection(kind);
+      if (kind === "tele") {
+        loadTeleCaseContext();
+        return;
+      }
+      if (kind === "path") {
+        loadPathologyCaseContext();
+        return;
+      }
+      if (kind === "reg") {
+        loadRegulationCaseContext();
+      }
+    }
+
     function doLogout() {
       localStorage.removeItem(TOKEN_KEY);
       updateSession(null);
@@ -1073,6 +1174,16 @@
 
     async function createCase(shouldSubmit = false) {
       try {
+        const files = getFilesFromFields([
+          "case_create_media_file_1",
+          "case_create_media_file_2",
+          "case_create_media_file_3",
+          "case_create_media_file_4"
+        ]);
+        if (shouldSubmit && !files.length) {
+          throw new Error("Anexe ao menos uma midia antes de criar e submeter o caso.");
+        }
+
         const payload = buildCasePayload();
         validateCasePayload(payload);
         const created = await apiFetch("/cases", {
@@ -1080,17 +1191,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const files = getFilesFromFields([
-          "case_create_media_file_1",
-          "case_create_media_file_2",
-          "case_create_media_file_3"
-        ]);
+        const selectedMediaTypes = getSelectedValues("case_create_media_type");
         if (created && created.id) {
           setCaseSelection(created.id);
         }
         if (created?.id && files.length) {
-          await uploadMediaBatch(created.id, $("case_create_media_type").value, files);
-          ["case_create_media_file_1", "case_create_media_file_2", "case_create_media_file_3"].forEach((fieldId) => {
+          await uploadCreateMedia(created.id, selectedMediaTypes, files);
+          ["case_create_media_file_1", "case_create_media_file_2", "case_create_media_file_3", "case_create_media_file_4"].forEach((fieldId) => {
             if ($(fieldId)) $(fieldId).value = "";
           });
         }
@@ -1135,8 +1242,10 @@
         const id = Number($("case_lookup_id").value);
         if (!id) throw new Error("Informe um ID de caso valido.");
         const caseData = await apiFetch("/cases/" + id);
+        setCaseSelection(id);
         $("chat_case_id").value = id;
         fillCaseDetailContext(caseData);
+        fillCaseFormForEdit(caseData);
         await loadCaseNotifications();
         showMessage("Caso carregado com sucesso.", "success");
         showResult(caseData);
@@ -1146,43 +1255,28 @@
       }
     }
 
-    async function submitCase() {
+    async function updateCase() {
       try {
-        const id = Number($("case_lookup_id").value);
-        if (!id) throw new Error("Informe um ID de caso valido.");
-        const submitted = await apiFetch("/cases/" + id + "/submit", {
-          method: "POST"
-        });
-        setCaseSelection(id);
-        fillCaseDetailContext(submitted);
-        await loadCaseNotifications();
-        await loadMyCases(false);
-        showMessage("Caso submetido com sucesso.", "success");
-        showResult(submitted);
-      } catch (error) {
-        showMessage(error.message || "Falha ao submeter o caso.", "error");
-        showResult(String(error.message || error));
-      }
-    }
+        const id = Number($("case_lookup_id").value || $("case_lookup_select").value);
+        if (!id) throw new Error("Abra um caso na tela 'Meus casos' para editar.");
 
-    async function uploadCaseMedia() {
-      try {
-        const id = Number($("case_lookup_id").value);
-        if (!id) throw new Error("Informe um ID de caso valido.");
-        const files = [
-          $("case_media_file_1")?.files?.[0],
-          $("case_media_file_2")?.files?.[0],
-          $("case_media_file_3")?.files?.[0]
-        ].filter(Boolean);
-        if (!files.length) throw new Error("Selecione ao menos um arquivo.");
-        const uploaded = await uploadMediaBatch(id, $("case_media_type").value, files);
-        ["case_media_file_1", "case_media_file_2", "case_media_file_3"].forEach((fieldId) => {
-          if ($(fieldId)) $(fieldId).value = "";
+        const payload = buildCasePayload();
+        validateCasePayload(payload);
+
+        const updated = await apiFetch("/cases/" + id, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
         });
-        showMessage("Midia anexada com sucesso.", "success");
-        showResult(uploaded);
+
+        setCaseSelection(id);
+        fillCaseDetailContext(updated);
+        fillCaseFormForEdit(updated);
+        await loadMyCases(false);
+        showMessage("Caso atualizado com sucesso.", "success");
+        showResult(updated);
       } catch (error) {
-        showMessage(error.message || "Falha ao anexar a midia.", "error");
+        showMessage(error.message || "Falha ao atualizar o caso.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1216,7 +1310,7 @@
         });
         $("chat_message").value = "";
         await loadCaseMessages();
-        showMessage("Mensagem enviada com sucesso.", "success");
+        showMessage("Acao bem-sucedida: mensagem enviada com sucesso.", "success");
         showResult(created);
       } catch (error) {
         showMessage(error.message || "Falha ao enviar a mensagem.", "error");
@@ -1346,7 +1440,7 @@
           body: JSON.stringify(payload)
         });
         setCaseSelection(id);
-        showMessage("Resposta da teleconsultoria enviada com sucesso.", "success");
+        showMessage("Acao bem-sucedida: resposta da teleconsultoria enviada com sucesso.", "success");
         showResult(data);
       } catch (error) {
         showMessage(error.message || "Falha ao enviar a resposta da teleconsultoria.", "error");
@@ -1455,28 +1549,61 @@
       }
     }
 
-    async function completeRegulation() {
+    async function submitRegulationUpdate(finalize = false) {
       try {
         const id = Number($("reg_case_id").value || $("case_lookup_id").value);
         if (!id) throw new Error("Informe um ID de caso valido.");
         const notes = $("reg_notes").value.trim();
         if (notes.length < 3) throw new Error("Preencha as notas regulatorias.");
+        const regulationStatus = finalize ? "completed" : "in_review";
+        const microscopicReportDate = $("reg_microscopic_report_date").value || null;
+        const followup1m = $("reg_followup_1m").value;
+        const followup3m = $("reg_followup_3m").value;
+        const followup6mStatus = $("reg_followup_6m_status").value.trim();
+        const followupBarriers = $("reg_followup_barriers").value.trim();
+
+        if (finalize) {
+          if (!microscopicReportDate) throw new Error("Informe a data do laudo microscopico.");
+          if (followup1m === "") throw new Error("Informe o acompanhamento de 1 mes.");
+          if (followup3m === "") throw new Error("Informe o acompanhamento de 3 meses.");
+          if (followup6mStatus.length < 3) throw new Error("Descreva o acompanhamento de 6 meses.");
+          if (followupBarriers.length < 3) throw new Error("Descreva as principais barreiras.");
+        }
+
         const data = await apiFetch("/regulator/cases/" + id + "/complete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             regulation_notes: notes,
-            regulation_status: $("reg_status").value
+            regulation_status: regulationStatus,
+            microscopic_report_date: microscopicReportDate,
+            followup_1m_head_neck_seen: followup1m === "" ? null : followup1m === "true",
+            followup_3m_initial_treatment_done: followup3m === "" ? null : followup3m === "true",
+            followup_6m_status: followup6mStatus || null,
+            followup_main_barriers: followupBarriers || null,
           })
         });
         setCaseSelection(id);
         fillRegulationCaseContext(data);
-        showMessage("Telerregulacao concluida com sucesso.", "success");
+        showMessage(
+          finalize
+            ? "Acao bem-sucedida: telerregulacao concluida com sucesso."
+            : "Acao bem-sucedida: atualizacao da regulacao salva (em analise).",
+          "success"
+        );
         showResult(data);
       } catch (error) {
-        showMessage(error.message || "Falha ao concluir a telerregulacao.", "error");
+        showMessage(error.message || "Falha ao salvar a regulacao.", "error");
         showResult(String(error.message || error));
       }
+    }
+
+    async function saveRegulationProgress() {
+      return submitRegulationUpdate(false);
+    }
+
+    async function completeRegulation() {
+      return submitRegulationUpdate(true);
     }
 
     async function doRegister() {

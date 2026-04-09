@@ -7,6 +7,7 @@ from sqlalchemy import (
     String,
     Text,
     DateTime,
+    Date,
     ForeignKey,
     Boolean,
     Enum,
@@ -112,6 +113,11 @@ class ClinicalCase(Base):
         index=True,
     )
     regulation_notes = Column(Text, nullable=True)
+    microscopic_report_date = Column(Date, nullable=True)
+    followup_1m_head_neck_seen = Column(Boolean, nullable=True)
+    followup_3m_initial_treatment_done = Column(Boolean, nullable=True)
+    followup_6m_status = Column(Text, nullable=True)
+    followup_main_barriers = Column(Text, nullable=True)
 
     submitted_at = Column(DateTime, nullable=True)
     assigned_at = Column(DateTime, nullable=True)

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import List
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -36,6 +36,33 @@ class CaseCreate(BaseModel):
     # Dashboard / extras (OBRIGATÓRIO)
     lesion_topography: str
     is_biopsied: bool
+
+
+class CaseUpdate(BaseModel):
+    dentist_state: str | None = None
+    dentist_municipality: str | None = None
+    unit_name: str | None = None
+
+    patient_name: str | None = None
+    sus_card: str | None = None
+    patient_phone: str | None = None
+    patient_sex: str | None = None
+    patient_age: int | None = None
+    patient_city: str | None = None
+    patient_state: str | None = None
+
+    chief_complaint: str | None = None
+    hpi: str | None = None
+    medical_history: str | None = None
+    dental_history: str | None = None
+    habits: str | None = None
+    meds_history: str | None = None
+    vitals: str | None = None
+    oral_description: str | None = None
+    dentist_hypotheses: str | None = None
+
+    lesion_topography: str | None = None
+    is_biopsied: bool | None = None
 
 
 class MediaOut(BaseModel):
@@ -132,6 +159,11 @@ class CaseOut(BaseModel):
     regulator_user_id: int | None = None
     regulation_status: RegulationStatus | None = None
     regulation_notes: str | None = None
+    microscopic_report_date: date | None = None
+    followup_1m_head_neck_seen: bool | None = None
+    followup_3m_initial_treatment_done: bool | None = None
+    followup_6m_status: str | None = None
+    followup_main_barriers: str | None = None
     pathology_diagnosis: str | None = None
     pathology_report: str | None = None
     submitted_at: datetime | None = None
