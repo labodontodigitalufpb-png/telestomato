@@ -4,8 +4,9 @@ from sqlalchemy.orm import Session
 from app.core.db import get_db
 from app.models.profile import ProfessionalProfile
 from app.schemas.profile import ProfileCreate, ProfileOut
-from app.routers.auth import get_current_user
+from app.security.auth import get_current_user   # ✅ AQUI
 from app.models.user import User
+
 
 router = APIRouter(prefix="/profile", tags=["profile"])
 

@@ -15,6 +15,8 @@ class ProfessionalProfile(Base):
     sex = Column(String(20), nullable=False)
     phone = Column(String(30), nullable=False)
     email = Column(String(200), nullable=False)
+    address = Column(String(255), nullable=True)
+    profession = Column(String(120), nullable=True)
 
     municipality = Column(String(150), nullable=False)
     state = Column(String(2), nullable=False)

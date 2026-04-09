@@ -8,6 +8,8 @@ class ProfileBase(BaseModel):
     sex: str
     phone: str
     email: EmailStr
+    address: Optional[str] = None
+    profession: Optional[str] = None
     municipality: str
     state: str
     cro: str
@@ -45,4 +47,3 @@ class ProfileOut(ProfileBase):
 
     class Config:
         from_attributes = True
-

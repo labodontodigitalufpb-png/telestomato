@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telestomatologia</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-visual">
+        <img src="/assets/telestomatologia-logo.jpeg" alt="Marca Telestomatologia" />
+      </div>
+      <div class="hero-copy">
+        <span class="kicker">Rede de teleinterconsulta em estomatologia</span>
+        <h1>Telestomatologia</h1>
+        <p>A telestomatologia amplia o acesso ao cuidado especializado em saúde bucal, conectando profissionais da atenção à distância para discussão de casos, apoio diagnóstico, orientação clínica e encaminhamento oportuno de lesões suspeitas.</p>
+        <p>Na prática, ela fortalece a integração entre assistência, teleconsultoria e regulação, favorecendo decisões mais rápidas, comunicação entre equipes e acompanhamento qualificado dos pacientes.</p>
+        <div class="partner-row">
+          <div class="partner-card">
+            <img src="/assets/brasil-sorridente.png" alt="Brasil Sorridente" />
+          </div>
+          <div class="partner-card">
+            <img src="/assets/labodigit-logo.jpg" alt="LaboDigit" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="layout single">
+      <main class="main-card">
+        <div class="main-head">
+          <div class="main-head-top">
+            <div>
+              <h2>Entrar ou criar acesso</h2>
+              <p>Use esta tela para autenticar profissionais e validar a sessao antes de seguir para os modulos de casos, teleconsultoria e regulacao.</p>
+            </div>
+            <div class="inline-status">
+              <div class="inline-status-card">
+                <span>Sessao</span>
+                <strong id="sessionState">Aguardando login</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="main-body">
+          <div id="message" class="message"></div>
+
+          <section id="publicHome" class="public-home">
+            <div class="panel-grid">
+              <section id="loginPanel" class="panel">
+                <h3>Login</h3>
+                <p>Digite seu e-mail e senha para acessar a plataforma.</p>
+                <div class="stack">
+                  <div>
+                    <label for="login_email">E-mail</label>
+                    <input id="login_email" type="email" placeholder="profissional@exemplo.com" />
+                  </div>
+                  <div>
+                    <label for="login_password">Senha</label>
+                    <input id="login_password" type="password" placeholder="Digite sua senha" />
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="primary" type="button" onclick="doLogin()">Entrar</button>
+                  <button class="soft" type="button" onclick="switchTab('register')">Criar conta</button>
+                </div>
+              </section>
+
+              <section id="registerPanel" class="panel hidden">
+                <h3>Cadastrar profissional</h3>
+                <p>Preencha os dados profissionais para criar o acesso. O cadastro publico permite profissional solicitante, teleconsultor, patologista e regulador.</p>
+                <div class="stack">
+                  <div>
+                    <label for="register_name">Nome completo</label>
+                    <input id="register_name" type="text" placeholder="Digite seu nome completo" />
+                  </div>
+                  <div>
+                    <label for="register_email">E-mail</label>
+                    <input id="register_email" type="email" placeholder="profissional@exemplo.com" />
+                  </div>
+                  <div>
+                    <label for="register_password">Senha</label>
+                    <input id="register_password" type="password" placeholder="Minimo de 6 caracteres" />
+                  </div>
+                  <div>
+                    <label for="register_phone">Telefone</label>
+                    <input id="register_phone" type="text" placeholder="(83) 99999-9999" />
+                  </div>
+                  <div>
+                    <label for="register_age">Idade</label>
+                    <input id="register_age" type="number" min="18" max="120" placeholder="35" />
+                  </div>
+                  <div>
+                    <label for="register_sex">Sexo</label>
+                    <select id="register_sex">
+                      <option value="">Selecione</option>
+                      <option value="F">Feminino</option>
+                      <option value="M">Masculino</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="register_address">Endereço</label>
+                    <input id="register_address" type="text" placeholder="Rua, numero, bairro" />
+                  </div>
+                  <div>
+                    <label for="register_municipality">Municipio</label>
+                    <input id="register_municipality" type="text" placeholder="Joao Pessoa" />
+                  </div>
+                  <div>
+                    <label for="register_state">UF</label>
+                    <input id="register_state" type="text" maxlength="2" placeholder="PB" />
+                  </div>
+                  <div>
+                    <label for="register_council_number">Numero no conselho profissional</label>
+                    <input id="register_council_number" type="text" placeholder="CRO/PB 1234" />
+                  </div>
+                  <div>
+                    <label for="register_profession">Profissao</label>
+                    <input id="register_profession" type="text" placeholder="Cirurgiao-dentista" />
+                  </div>
+                  <div>
+                    <label for="register_unit_name">Unidade de atendimento</label>
+                    <input id="register_unit_name" type="text" placeholder="UBS / CEO / Clinica / Hospital" />
+                  </div>
+                  <div>
+                    <label for="register_has_specialization">E especialista?</label>
+                    <select id="register_has_specialization">
+                      <option value="false">Nao</option>
+                      <option value="true">Sim</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="register_specialization">Especialidade</label>
+                    <input id="register_specialization" type="text" placeholder="Se houver, informe a especialidade" />
+                  </div>
+                  <div>
+                    <label for="register_role">Perfil de acesso</label>
+                    <select id="register_role">
+                      <option value="DENTIST">Profissional solicitante</option>
+                      <option value="TELECONSULTANT">Teleconsultor</option>
+                      <option value="PATHOLOGIST">Patologista</option>
+                      <option value="REGULATOR">Telerregulador</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="primary" type="button" onclick="doRegister()">Cadastrar profissional</button>
+                  <button class="soft" type="button" onclick="switchTab('login')">Voltar para login</button>
+                </div>
+              </section>
+            </div>
+
+            <section id="publicDashboard" class="public-dashboard-card">
+              <h3>Dashboard publico</h3>
+              <p>Este painel pode ser acessado independentemente do cadastro para visualizar o resumo geral da plataforma.</p>
+              <div class="actions">
+                <button class="primary" type="button" onclick="loadDashboard()">Atualizar dashboard</button>
+              </div>
+              <div class="context-box">
+                <strong>Painel sintetico do sistema</strong>
+                <div class="context-grid">
+                  <div class="context-item">
+                    <span>Desde</span>
+                    <strong id="dash_since">-</strong>
+                  </div>
+                  <div class="context-item">
+                    <span>Total de casos</span>
+                    <strong id="dash_total">-</strong>
+                  </div>
+                  <div class="context-item">
+                    <span>Rascunhos</span>
+                    <strong id="dash_draft">0</strong>
+                  </div>
+                  <div class="context-item">
+                    <span>Submetidos</span>
+                    <strong id="dash_submitted">0</strong>
+                  </div>
+                  <div class="context-item">
+                    <span>Atribuidos</span>
+                    <strong id="dash_assigned">0</strong>
+                  </div>
+                  <div class="context-item">
+                    <span>Respondidos</span>
+                    <strong id="dash_answered">0</strong>
+                  </div>
+                </div>
+                <div>
+                  <span class="context-label">Fechados</span>
+                  <p id="dash_closed" class="context-text">0</p>
+                </div>
+              </div>
+            </section>
+          </section>
+
+          <section id="postLogin" class="post-login">
+            <div class="workspace-head">
+              <div>
+                <h3 id="workspaceTitle" style="margin:0;">Painel clinico</h3>
+                <p id="workspaceSubtitle" style="margin:8px 0 0;color:var(--muted);line-height:1.6;">Area autenticada com fluxo organizado por perfil.</p>
+              </div>
+              <div class="actions workspace-actions">
+                <button class="soft" type="button" onclick="loadSession()">Atualizar sessao</button>
+                <button class="soft" type="button" onclick="doLogout()">Sair</button>
+              </div>
+            </div>
+
+            <div class="post-login-grid">
+              <div class="post-login-card">
+                <span>Usuario</span>
+                <strong id="meEmail">-</strong>
+              </div>
+              <div class="post-login-card">
+                <span>Perfil</span>
+                <strong id="meRole">-</strong>
+              </div>
+            </div>
+
+            <div id="roleGuide" class="side-note hidden" style="margin-top:18px;"></div>
+
+            <div class="screen-nav">
+              <button id="navDentistHome" class="screen-btn" type="button" data-page="dentist-home" data-roles="DENTIST,ADMIN" onclick="setAppPage('dentist-home')"><span class="screen-btn-icon">⌂</span><span class="screen-btn-label"><strong>Painel</strong><span>Profissional</span></span></button>
+              <button id="navCreateCase" class="screen-btn" type="button" data-page="case-create" data-roles="DENTIST,ADMIN" onclick="setAppPage('case-create')"><span class="screen-btn-icon">+</span><span class="screen-btn-label"><strong>Novo caso</strong><span>Relato</span></span></button>
+              <button id="navCaseManage" class="screen-btn" type="button" data-page="case-manage" data-roles="DENTIST,ADMIN" onclick="setAppPage('case-manage')"><span class="screen-btn-icon">◫</span><span class="screen-btn-label"><strong>Acompanhamento</strong><span>Pacientes</span></span></button>
+              <button id="navTeleHome" class="screen-btn" type="button" data-page="tele-home" data-roles="TELECONSULTANT,ADMIN" onclick="setAppPage('tele-home')"><span class="screen-btn-icon">◎</span><span class="screen-btn-label"><strong>Painel</strong><span>Teleconsultor</span></span></button>
+              <button id="navTele" class="screen-btn" type="button" data-page="tele" data-roles="TELECONSULTANT,ADMIN" onclick="setAppPage('tele')"><span class="screen-btn-icon">◎</span><span class="screen-btn-label"><strong>Resposta</strong><span>Casos</span></span></button>
+              <button id="navPathologyHome" class="screen-btn" type="button" data-page="pathology-home" data-roles="PATHOLOGIST,ADMIN" onclick="setAppPage('pathology-home')"><span class="screen-btn-icon">◉</span><span class="screen-btn-label"><strong>Painel</strong><span>Patologista</span></span></button>
+              <button id="navPathology" class="screen-btn" type="button" data-page="pathology" data-roles="PATHOLOGIST,ADMIN" onclick="setAppPage('pathology')"><span class="screen-btn-icon">◉</span><span class="screen-btn-label"><strong>Laudo</strong><span>Histopatologia</span></span></button>
+              <button id="navRegHome" class="screen-btn" type="button" data-page="reg-home" data-roles="REGULATOR,ADMIN" onclick="setAppPage('reg-home')"><span class="screen-btn-icon">↗</span><span class="screen-btn-label"><strong>Painel</strong><span>Regulador</span></span></button>
+              <button id="navRegulation" class="screen-btn" type="button" data-page="regulation" data-roles="REGULATOR,ADMIN" onclick="setAppPage('regulation')"><span class="screen-btn-icon">↗</span><span class="screen-btn-label"><strong>Casos suspeitos</strong><span>Detalhes</span></span></button>
+              <button id="navChat" class="screen-btn" type="button" data-page="chat" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="setAppPage('chat')"><span class="screen-btn-icon">✉</span><span class="screen-btn-label"><strong>Chat</strong><span>Dialogo</span></span></button>
+              <button id="navNotifications" class="screen-btn" type="button" data-page="notifications" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="setAppPage('notifications')"><span class="screen-btn-icon">!</span><span class="screen-btn-label"><strong>Avisos</strong><span>Notificacoes</span></span></button>
+            </div>
+
+            <div id="screenLabel" class="screen-label">Escolha um modulo para continuar.</div>
+
+            <div class="screen-hero">
+              <div class="screen-hero-card accent">
+                <div id="screenIcon" class="screen-hero-icon">⌂</div>
+                <h3 id="screenTitle">Inicio</h3>
+                <p id="screenSubtitle">Escolha um modulo para continuar.</p>
+              </div>
+              <div class="screen-hero-card">
+                <h3>Contexto do modulo</h3>
+                <p id="screenContext">A interface organiza o fluxo clinico por perfil, para que cada usuario veja primeiro o que realmente precisa fazer.</p>
+                <div>
+                  <div class="screen-meta">
+                    <div class="screen-meta-item">
+                      <span>Modulo atual</span>
+                      <strong id="screenMetaPage">Inicio</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="module-grid">
+              <section class="module-card" data-page="dentist-home" data-roles="DENTIST,ADMIN">
+                <h3>Painel do profissional</h3>
+                <p>Acesso rápido para relatar um novo caso, acompanhar os pacientes enviados e conversar com a equipe.</p>
+              </section>
+
+              <section class="module-card" data-page="tele-home" data-roles="TELECONSULTANT,ADMIN">
+                <h3>Painel da teleconsultoria</h3>
+                <p>Receba novos casos, acesse os casos já atribuídos e mantenha a comunicação clínica pelo chat.</p>
+              </section>
+
+              <section class="module-card" data-page="pathology-home" data-roles="PATHOLOGIST,ADMIN">
+                <h3>Painel da patologia</h3>
+                <p>Acesse os casos completos por nome do paciente, revise as mídias e envie o laudo histopatológico.</p>
+              </section>
+
+              <section class="module-card" data-page="reg-home" data-roles="REGULATOR,ADMIN">
+                <h3>Painel da regulação</h3>
+                <p>Visualize a fila de suspeitos, abra os casos detalhados e conclua a regulação assistencial.</p>
+              </section>
+
+              <section class="module-card" data-page="session" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN">
+                <h3>Painel de sessao</h3>
+                <p>Atualize os dados do usuario autenticado e confirme o perfil ativo antes de seguir para os proximos modulos.</p>
+                <div class="actions">
+                  <button class="primary" type="button" onclick="loadSession()">Atualizar sessao</button>
+                  <button class="soft" type="button" onclick="doLogout()">Sair</button>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="case-create" data-roles="DENTIST,ADMIN">
+                <h3>Relatar caso</h3>
+                <p>Formulario inicial integrado ao endpoint <code>/cases</code>, com envio imediato de ate 3 imagens ou outras midias do caso.</p>
+                <div class="stack">
+                  <div>
+                    <label for="case_dentist_state">UF do servico</label>
+                    <input id="case_dentist_state" type="text" placeholder="PB" />
+                  </div>
+                  <div>
+                    <label for="case_dentist_municipality">Municipio do servico</label>
+                    <input id="case_dentist_municipality" type="text" placeholder="Joao Pessoa" />
+                  </div>
+                  <div>
+                    <label for="case_unit_name">Unidade / servico</label>
+                    <input id="case_unit_name" type="text" placeholder="UBS / CEO / UFPB" />
+                  </div>
+                  <div>
+                    <label for="case_patient_name">Paciente</label>
+                    <input id="case_patient_name" type="text" placeholder="Nome ou iniciais" />
+                  </div>
+                  <div>
+                    <label for="case_sus_card">Cartao SUS</label>
+                    <input id="case_sus_card" type="text" placeholder="Numero do cartao SUS" />
+                  </div>
+                  <div>
+                    <label for="case_patient_phone">Telefone do paciente</label>
+                    <input id="case_patient_phone" type="text" placeholder="(83) 99999-9999" />
+                  </div>
+                  <div>
+                    <label for="case_patient_sex">Sexo</label>
+                    <select id="case_patient_sex">
+                      <option value="">Selecione</option>
+                      <option value="F">Feminino</option>
+                      <option value="M">Masculino</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="case_patient_age">Idade</label>
+                    <input id="case_patient_age" type="number" placeholder="57" />
+                  </div>
+                  <div>
+                    <label for="case_patient_city">Municipio do paciente</label>
+                    <input id="case_patient_city" type="text" placeholder="Campina Grande" />
+                  </div>
+                  <div>
+                    <label for="case_patient_state">UF do paciente</label>
+                    <input id="case_patient_state" type="text" placeholder="PB" />
+                  </div>
+                  <div>
+                    <label for="case_lesion_topography">Topografia da lesao</label>
+                    <input id="case_lesion_topography" type="text" placeholder="Borda lateral de lingua" />
+                  </div>
+                  <div>
+                    <label for="case_is_biopsied">Biopsia ja realizada?</label>
+                    <select id="case_is_biopsied">
+                      <option value="false">Nao</option>
+                      <option value="true">Sim</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="case_chief_complaint">Queixa principal</label>
+                    <textarea id="case_chief_complaint" placeholder="Ferida dolorosa na lingua ha 3 meses."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_hpi">Historia da doenca atual</label>
+                    <textarea id="case_hpi" placeholder="Descreva inicio, evolucao, sintomas associados e tratamentos previos."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_medical_history">Historia medica</label>
+                    <textarea id="case_medical_history" placeholder="Comorbidades, alergias e condicoes sistemicas relevantes."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_dental_history">Historia odontologica</label>
+                    <textarea id="case_dental_history" placeholder="Atendimentos previos, trauma, protese, biopsias ou condutas ja realizadas."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_habits">Habitos</label>
+                    <textarea id="case_habits" placeholder="Tabagismo, etilismo, exposicao solar e fatores de risco."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_meds_history">Medicacoes</label>
+                    <textarea id="case_meds_history" placeholder="Medicacoes em uso e historico recente."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_vitals">Sinais vitais e achados gerais</label>
+                    <textarea id="case_vitals" placeholder="Estado geral, dor, febre, perda de peso e linfonodos palpaveis."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_oral_description">Descricao clinica oral</label>
+                    <textarea id="case_oral_description" placeholder="Aspecto da lesao, cor, superficie, consistencia, localizacao e evolucao."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_dentist_hypotheses">Hipoteses diagnosticas</label>
+                    <textarea id="case_dentist_hypotheses" placeholder="Liste as principais hipoteses em ordem de suspeicao."></textarea>
+                  </div>
+                  <div>
+                    <label for="case_create_media_type">Tipo de midia</label>
+                    <select id="case_create_media_type">
+                      <option value="image">Imagem</option>
+                      <option value="exam">Exame</option>
+                      <option value="video">Video</option>
+                      <option value="consent">Consentimento</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="case_create_media_file_1">Midia 1</label>
+                    <input id="case_create_media_file_1" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
+                  <div>
+                    <label for="case_create_media_file_2">Midia 2</label>
+                    <input id="case_create_media_file_2" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
+                  <div>
+                    <label for="case_create_media_file_3">Midia 3</label>
+                    <input id="case_create_media_file_3" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
+                </div>
+                <div class="actions">
+                  <button class="primary" type="button" onclick="createCase(true)">Criar e submeter</button>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="case-manage" data-roles="DENTIST,ADMIN">
+                <h3>Meus casos</h3>
+                <p>Liste os casos do profissional autenticado e abra cada caso pelo nome do paciente.</p>
+                <div class="stack">
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="loadMyCases()">Atualizar lista</button>
+                  </div>
+                  <div>
+                    <label for="case_lookup_select">Selecionar caso pelo paciente</label>
+                    <select id="case_lookup_select" onchange="syncCaseSelection('case')">
+                      <option value="">Selecione um caso</option>
+                    </select>
+                  </div>
+                  <input id="case_lookup_id" type="hidden" />
+                  <div class="actions">
+                    <button class="soft" type="button" onclick="loadCaseById()">Abrir caso</button>
+                    <button class="soft" type="button" onclick="submitCase()">Submeter caso</button>
+                  </div>
+                  <div>
+                    <label for="case_media_type">Tipo de midia</label>
+                    <select id="case_media_type">
+                      <option value="image">Imagem</option>
+                      <option value="exam">Exame</option>
+                      <option value="video">Video</option>
+                      <option value="consent">Consentimento</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="case_media_file_1">Imagem 1</label>
+                    <input id="case_media_file_1" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
+                  <div>
+                    <label for="case_media_file_2">Imagem 2</label>
+                    <input id="case_media_file_2" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
+                  <div>
+                    <label for="case_media_file_3">Imagem 3</label>
+                    <input id="case_media_file_3" type="file" accept="image/*,.pdf,video/*,.heic,.heif,.mov" />
+                  </div>
+                  <div class="actions">
+                    <button class="soft" type="button" onclick="uploadCaseMedia()">Anexar midia</button>
+                    <button class="soft" type="button" onclick="loadCaseNotifications()">Atualizar avisos do caso</button>
+                  </div>
+                  <div class="context-box">
+                    <strong>Caso completo</strong>
+                    <div class="context-grid">
+                      <div class="context-item">
+                        <span>ID do caso</span>
+                        <strong id="case_ctx_id">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Status</span>
+                        <strong id="case_ctx_status">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Paciente</span>
+                        <strong id="case_ctx_patient">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Topografia</span>
+                        <strong id="case_ctx_topography">-</strong>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Queixa principal</span>
+                      <p id="case_ctx_complaint" class="context-text">Abra um caso para acompanhar a resposta da teleconsultoria.</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Historia clinica completa</span>
+                      <div id="case_ctx_clinical" class="detail-cards">
+                        <div class="detail-card muted">Abra um caso para visualizar a anamnese completa.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Imagens e mídias do caso</span>
+                      <div id="case_ctx_media" class="media-gallery">
+                        <div class="media-empty">Nenhuma mídia carregada para este caso.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Resposta do consultor</span>
+                      <div id="case_ctx_consultant" class="detail-cards">
+                        <div class="detail-card muted">Nenhuma resposta registrada ainda.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Laudo histopatológico</span>
+                      <div id="case_ctx_pathology" class="detail-cards">
+                        <div class="detail-card muted">Nenhum laudo histopatológico registrado ainda.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Conduta e coordenacao do cuidado</span>
+                      <div id="case_ctx_conduct" class="detail-cards">
+                        <div class="detail-card muted">-</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Telerregulacao</span>
+                      <div id="case_ctx_regulation" class="detail-cards">
+                        <div class="detail-card muted">Sem atualizacao regulatoria no momento.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Notificacoes do caso</span>
+                      <div id="case_ctx_notifications" class="timeline-list">
+                        <div class="timeline-item muted">
+                          <strong>Nenhuma notificacao carregada para este caso.</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="chat" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN">
+                <h3>Chat do caso</h3>
+                <p>Troque mensagens vinculadas a um caso escolhendo o paciente correspondente.</p>
+                <div class="stack">
+                  <div>
+                    <label for="chat_case_select">Selecionar caso pelo paciente</label>
+                    <select id="chat_case_select" onchange="syncCaseSelection('chat')">
+                      <option value="">Selecione um caso</option>
+                    </select>
+                  </div>
+                  <input id="chat_case_id" type="hidden" />
+                  <div>
+                    <label for="chat_message">Mensagem</label>
+                    <textarea id="chat_message" placeholder="Escreva uma atualizacao, duvida ou orientacao sobre o caso."></textarea>
+                  </div>
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="sendCaseMessage()">Enviar mensagem</button>
+                    <button class="soft" type="button" onclick="loadCaseMessages()">Atualizar chat</button>
+                  </div>
+                  <div class="chat-shell">
+                    <div class="chat-header">
+                      <strong>Conversa do caso</strong>
+                      <span id="chat_status">Carregue o chat para visualizar as mensagens.</span>
+                    </div>
+                    <div id="chat_thread" class="chat-thread">
+                      <div class="chat-empty">Nenhuma mensagem carregada.</div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="notifications" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN">
+                <h3>Notificacoes</h3>
+                <p>Veja seus avisos e marque uma notificacao especifica como lida.</p>
+                <div class="stack">
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="loadNotifications()">Atualizar notificacoes</button>
+                  </div>
+                  <div>
+                    <label for="notification_id">ID da notificacao</label>
+                    <input id="notification_id" type="number" placeholder="Digite o ID da notificacao" />
+                  </div>
+                  <div class="actions">
+                    <button class="soft" type="button" onclick="markNotificationRead()">Marcar como lida</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="tele" data-roles="TELECONSULTANT,ADMIN">
+                <h3>Teleconsultoria</h3>
+                <p>Pegue o proximo caso da fila, consulte seus atribuidos e responda o caso selecionado.</p>
+                <div class="stack">
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="teleNext()">Pegar proximo</button>
+                    <button class="soft" type="button" onclick="teleMyCases()">Meus atribuidos</button>
+                    <button class="soft" type="button" onclick="loadTeleCaseContext()">Abrir caso para resposta</button>
+                  </div>
+                  <div>
+                    <label for="tele_case_select">Selecionar caso pelo paciente</label>
+                    <select id="tele_case_select" onchange="syncCaseSelection('tele')">
+                      <option value="">Selecione um caso</option>
+                    </select>
+                  </div>
+                  <input id="tele_case_id" type="hidden" />
+                  <div class="context-box">
+                    <strong>Caso completo para teleconsultoria</strong>
+                    <div class="context-grid">
+                      <div class="context-item">
+                        <span>Paciente</span>
+                        <strong id="tele_ctx_patient">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Status</span>
+                        <strong id="tele_ctx_status">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Topografia</span>
+                        <strong id="tele_ctx_topography">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Hipotese do solicitante</span>
+                        <strong id="tele_ctx_dentist_hypothesis">-</strong>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Queixa principal</span>
+                      <p id="tele_ctx_complaint" class="context-text">Carregue um caso para visualizar o contexto clinico.</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Descricao oral</span>
+                      <p id="tele_ctx_oral" class="context-text">-</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Historia clinica completa</span>
+                      <div id="tele_ctx_clinical" class="detail-cards">
+                        <div class="detail-card muted">Carregue um caso para visualizar a anamnese completa.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Imagens e mídias do caso</span>
+                      <div id="tele_ctx_media" class="media-gallery">
+                        <div class="media-empty">Carregue um caso para visualizar as mídias.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Laudo histopatológico</span>
+                      <div id="tele_ctx_pathology" class="detail-cards">
+                        <div class="detail-card muted">Nenhum laudo histopatológico registrado ainda.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="tele_hypothesis">Hipotese principal</label>
+                    <input id="tele_hypothesis" type="text" placeholder="CEC, trauma cronico, leucoplasia..." />
+                  </div>
+                  <div>
+                    <label for="tele_summary">Descricao clinica / sintese do caso</label>
+                    <textarea id="tele_summary" placeholder="Resuma os achados clinicos mais importantes."></textarea>
+                  </div>
+                  <div>
+                    <label for="tele_hypotheses">Hipoteses diagnosticas justificadas</label>
+                    <textarea id="tele_hypotheses" placeholder="Descreva as hipoteses e a justificativa clinica."></textarea>
+                  </div>
+                  <div>
+                    <label for="tele_conduct">Conduta clinica</label>
+                    <textarea id="tele_conduct" placeholder="Informe a conduta recomendada."></textarea>
+                  </div>
+                  <div>
+                    <label for="tele_care">Coordenacao do cuidado</label>
+                    <textarea id="tele_care" placeholder="Explique o fluxo assistencial e o encaminhamento sugerido."></textarea>
+                  </div>
+                  <div>
+                    <label for="tele_bibliography">Bibliografia</label>
+                    <textarea id="tele_bibliography" placeholder="Opcional. Cite diretrizes ou referencias de apoio."></textarea>
+                  </div>
+                  <div>
+                    <label for="tele_malignant">Suspeita de malignidade?</label>
+                    <select id="tele_malignant">
+                      <option value="">Nao informado</option>
+                      <option value="true">Sim</option>
+                      <option value="false">Nao</option>
+                    </select>
+                  </div>
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="teleAnswerCase()">Enviar resposta</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="pathology" data-roles="PATHOLOGIST,ADMIN">
+                <h3>Patologia</h3>
+                <p>Selecione um caso pelo nome do paciente, visualize o caso completo e envie o laudo histopatológico.</p>
+                <div class="stack">
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="loadPathologistCases()">Atualizar casos</button>
+                    <button class="soft" type="button" onclick="loadPathologyCaseContext()">Abrir caso completo</button>
+                  </div>
+                  <div>
+                    <label for="path_case_select">Selecionar caso pelo paciente</label>
+                    <select id="path_case_select" onchange="syncCaseSelection('path')">
+                      <option value="">Selecione um caso</option>
+                    </select>
+                  </div>
+                  <input id="path_case_id" type="hidden" />
+                  <div class="context-box">
+                    <strong>Caso completo para laudo histopatológico</strong>
+                    <div class="context-grid">
+                      <div class="context-item">
+                        <span>Paciente</span>
+                        <strong id="path_ctx_patient">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Status</span>
+                        <strong id="path_ctx_status">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Topografia</span>
+                        <strong id="path_ctx_topography">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Hipotese do solicitante</span>
+                        <strong id="path_ctx_dentist_hypothesis">-</strong>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Queixa principal</span>
+                      <p id="path_ctx_complaint" class="context-text">Carregue um caso para visualizar o contexto clinico.</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Historia clinica completa</span>
+                      <div id="path_ctx_clinical" class="detail-cards">
+                        <div class="detail-card muted">Carregue um caso para visualizar a anamnese completa.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Imagens e mídias do caso</span>
+                      <div id="path_ctx_media" class="media-gallery">
+                        <div class="media-empty">Carregue um caso para visualizar as mídias.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Laudo histopatológico atual</span>
+                      <div id="path_ctx_report" class="detail-cards">
+                        <div class="detail-card muted">Nenhum laudo registrado ainda.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="path_diagnosis">Diagnóstico histopatológico</label>
+                    <input id="path_diagnosis" type="text" placeholder="Carcinoma espinocelular, hiperplasia, displasia..." />
+                  </div>
+                  <div>
+                    <label for="path_report">Laudo histopatológico</label>
+                    <textarea id="path_report" placeholder="Descreva o laudo histopatológico completo para o profissional e o teleconsultor."></textarea>
+                  </div>
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="submitPathologyReport()">Enviar laudo</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="module-card" data-page="regulation" data-roles="REGULATOR,ADMIN">
+                <h3>Telerregulacao</h3>
+                <p>Consulte a fila de casos suspeitos, assuma o caso e conclua a regulacao.</p>
+                <div class="stack">
+                  <div class="actions">
+                    <button class="primary" type="button" onclick="loadRegulationQueue()">Ver fila</button>
+                    <button class="soft" type="button" onclick="loadRegulationCaseContext()">Abrir caso regulatorio</button>
+                  </div>
+                  <div>
+                    <label for="reg_case_select">Selecionar caso suspeito pelo paciente</label>
+                    <select id="reg_case_select" onchange="syncCaseSelection('reg')">
+                      <option value="">Selecione um caso</option>
+                    </select>
+                  </div>
+                  <input id="reg_case_id" type="hidden" />
+                  <div class="context-box">
+                    <strong>Caso completo para telerregulacao</strong>
+                    <div class="context-grid">
+                      <div class="context-item">
+                        <span>Paciente</span>
+                        <strong id="reg_ctx_patient">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Status clinico</span>
+                        <strong id="reg_ctx_case_status">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Status regulatorio</span>
+                        <strong id="reg_ctx_reg_status">-</strong>
+                      </div>
+                      <div class="context-item">
+                        <span>Suspeita de malignidade</span>
+                        <strong id="reg_ctx_malignant">-</strong>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Hipotese principal do consultor</span>
+                      <p id="reg_ctx_hypothesis" class="context-text">Carregue um caso para visualizar a sintese do teleconsultor.</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Conduta / coordenacao sugeridas</span>
+                      <p id="reg_ctx_conduct" class="context-text">-</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Notas regulatorias atuais</span>
+                      <p id="reg_ctx_notes" class="context-text">-</p>
+                    </div>
+                    <div>
+                      <span class="context-label">Historia clinica completa</span>
+                      <div id="reg_ctx_clinical" class="detail-cards">
+                        <div class="detail-card muted">Carregue um caso para visualizar a anamnese completa.</div>
+                      </div>
+                    </div>
+                    <div>
+                      <span class="context-label">Imagens e mídias do caso</span>
+                      <div id="reg_ctx_media" class="media-gallery">
+                        <div class="media-empty">Carregue um caso para visualizar as mídias.</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <label for="reg_status">Status da regulacao</label>
+                    <select id="reg_status">
+                      <option value="completed">Concluida</option>
+                      <option value="in_review">Em analise</option>
+                      <option value="pending">Pendente</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="reg_notes">Notas regulatorias</label>
+                    <textarea id="reg_notes" placeholder="Descreva prioridade, fluxo e orientacoes regulatorias."></textarea>
+                  </div>
+                  <div class="actions">
+                    <button class="soft" type="button" onclick="takeRegulationCase()">Assumir caso</button>
+                    <button class="soft" type="button" onclick="completeRegulation()">Concluir regulacao</button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+
+          <div id="result" class="result"><span class="result-title">Retorno da aplicacao</span>Aguardando acao...</div>
+
+          <div class="bottom-dock">
+            <button id="dockHome" class="dock-btn" type="button" data-page="dentist-home" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="openWorkspace()"><span>⌂</span><span>Painel</span></button>
+            <button id="dockWork" class="dock-btn" type="button" data-page="case-create" data-roles="DENTIST,ADMIN" onclick="setAppPage('case-create')"><span>+</span><span>Casos</span></button>
+            <button id="dockChat" class="dock-btn" type="button" data-page="chat" data-roles="DENTIST,TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="setAppPage('chat')"><span>✉</span><span>Chat</span></button>
+            <button id="dockFlow" class="dock-btn" type="button" data-page="tele" data-roles="TELECONSULTANT,PATHOLOGIST,REGULATOR,ADMIN" onclick="setDockFlowPage()"><span>◎</span><span>Fluxo</span></button>
+          </div>
+        </div>
+      </main>
+    </section>
+  </div>
+  <div id="mediaLightbox" class="media-lightbox hidden" onclick="closeMediaLightbox(event)">
+    <div class="media-lightbox-dialog" onclick="event.stopPropagation()">
+      <div class="media-lightbox-head">
+        <div>
+          <strong id="lightboxTitle">Midia do caso</strong>
+          <span id="lightboxMeta">Visualizacao ampliada</span>
+        </div>
+        <div class="lightbox-actions">
+          <button class="soft icon-only" type="button" onclick="lightboxPrev()">Anterior</button>
+          <a id="lightboxDownload" class="soft icon-only lightbox-download" href="#" download target="_blank" rel="noopener noreferrer">Download</a>
+          <button class="soft icon-only" type="button" onclick="lightboxNext()">Proxima</button>
+          <button class="soft icon-only" type="button" onclick="closeMediaLightbox()">Fechar</button>
+        </div>
+      </div>
+      <div id="mediaLightboxBody" class="media-lightbox-body"></div>
+    </div>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

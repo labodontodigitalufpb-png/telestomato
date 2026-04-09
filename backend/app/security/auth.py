@@ -1,28 +1,50 @@
 from datetime import datetime, timedelta
-from jose import jwt, JWTError
-from passlib.context import CryptContext
 from typing import Optional
 
-from app.core.config import settings
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy.orm import Session
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-ALGORITHM = "HS256"
+from app.core.config import settings
+from app.core.db import get_db
+from app.models.user import User
+
+pwd_context = CryptContext(
+    schemes=["argon2", "bcrypt"],
+    deprecated="auto",
+)
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+ALGORITHM = getattr(settings, "ALGORITHM", "HS256")
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+
 def verify_password(password: str, password_hash: str) -> bool:
+    # evita crash com bcrypt + senha >72 bytes
+    if password_hash.startswith(("$2a$", "$2b$", "$2y$")):
+        if len(password.encode("utf-8")) > 72:
+            return False
     return pwd_context.verify(password, password_hash)
+
+
+def needs_rehash(password_hash: str) -> bool:
+    return pwd_context.needs_update(password_hash)
+
 
 def create_access_token(subject: str, expires_minutes: Optional[int] = None) -> str:
     expire = datetime.utcnow() + timedelta(
-        minutes=expires_minutes if expires_minutes is not None else settings.ACCESS_TOKEN_EXPIRE_MINUTES
+        minutes=expires_minutes
+        if expires_minutes is not None
+        else settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
-    to_encode = {
-        "sub": subject,
-        "exp": expire
-    }
+    to_encode = {"sub": subject, "exp": expire}
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
+
 
 def decode_token(token: str) -> str:
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
@@ -30,17 +52,6 @@ def decode_token(token: str) -> str:
     if not sub:
         raise JWTError("Token inválido")
     return sub
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
-from sqlalchemy.orm import Session
-
-from app.core.config import settings
-from app.core.db import get_db
-from app.models.user import User
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def get_current_user(
@@ -54,12 +65,8 @@ def get_current_user(
     )
 
     try:
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM],
-        )
-        user_id: str | None = payload.get("sub")
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
     except JWTError:
@@ -70,3 +77,17 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+def verify_and_upgrade_password(db: Session, user: User, password: str) -> bool:
+    ok = verify_password(password, user.password_hash)
+    if not ok:
+        return False
+
+    if needs_rehash(user.password_hash):
+        user.password_hash = hash_password(password)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    return True

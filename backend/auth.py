@@ -1,4 +1,4 @@
-cat > app/security/auth.py << 'PY'
+
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -29,4 +29,3 @@ def decode_token(token: str) -> str:
         return sub
     except JWTError:
         raise
-PY

@@ -2,7 +2,14 @@ import enum
 from datetime import datetime
 
 from sqlalchemy import (
-    Column, Integer, String, Text, DateTime, ForeignKey, Boolean, Enum
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    Boolean,
+    Enum,
 )
 from sqlalchemy.orm import relationship
 
@@ -17,76 +24,105 @@ class CaseStatus(str, enum.Enum):
     closed = "closed"
 
 
-class MediaType(str, enum.Enum):
-    image = "image"
-    exam = "exam"
-    video = "video"
-    consent = "consent"
+class RegulationStatus(str, enum.Enum):
+    none = "none"
+    pending = "pending"
+    in_review = "in_review"
+    completed = "completed"
 
 
 class ClinicalCase(Base):
     __tablename__ = "clinical_cases"
 
+    # ---- Identificação ----
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # ---- Dentista ----
     dentist_user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     dentist = relationship("User", foreign_keys=[dentist_user_id])
 
-    # Snapshot mínimo (evita depender do profile para tudo)
-    dentist_state = Column(String(2), nullable=True)
-    dentist_municipality = Column(String(120), nullable=True)
-    unit_name = Column(String(200), nullable=True)
+    dentist_state = Column(String(2), nullable=False)
+    dentist_municipality = Column(String(120), nullable=False)
+    unit_name = Column(String(200), nullable=False)
 
-    # Dados do paciente/caso (MVP)
+    # ---- Paciente ----
     case_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+
     patient_name = Column(String(200), nullable=False)
     sus_card = Column(String(32), nullable=False)
-    patient_phone = Column(String(32), nullable=True)
-    patient_sex = Column(String(20), nullable=True)
-    patient_age = Column(Integer, nullable=True)
-    patient_city = Column(String(120), nullable=True)
-    patient_state = Column(String(2), nullable=True)
+    patient_phone = Column(String(32), nullable=False)
+    patient_sex = Column(String(20), nullable=False)
+    patient_age = Column(Integer, nullable=False)
+    patient_city = Column(String(120), nullable=False)
+    patient_state = Column(String(2), nullable=False)
 
-    chief_complaint = Column(Text, nullable=True)
-    hpi = Column(Text, nullable=True)  # história da doença atual
-    medical_history = Column(Text, nullable=True)
-    dental_history = Column(Text, nullable=True)
-    habits = Column(Text, nullable=True)
-    meds_history = Column(Text, nullable=True)
-    vitals = Column(Text, nullable=True)  # texto simples no MVP
-    oral_description = Column(Text, nullable=True)
-    dentist_hypotheses = Column(Text, nullable=True)
+    # ---- Anamnese / exame ----
+    chief_complaint = Column(Text, nullable=False)
+    hpi = Column(Text, nullable=False)
+    medical_history = Column(Text, nullable=False)
+    dental_history = Column(Text, nullable=False)
+    habits = Column(Text, nullable=False)
+    meds_history = Column(Text, nullable=False)
+    vitals = Column(Text, nullable=False)
+    oral_description = Column(Text, nullable=False)
 
-    status = Column(Enum(CaseStatus), default=CaseStatus.draft, nullable=False, index=True)
+    # ---- Hipóteses do dentista ----
+    dentist_hypotheses = Column(Text, nullable=False)
+
+    # ---- Campos estruturados (dashboard) ----
+    lesion_topography = Column(String(120), nullable=False)
+
+    # ---- Teleconsultoria (preenchidos depois) ----
+    consultant_summary = Column(Text, nullable=True)
+    consultant_hypotheses = Column(Text, nullable=True)
+    consultant_conduct = Column(Text, nullable=True)
+    consultant_care_coordination = Column(Text, nullable=True)
+    consultant_bibliography = Column(Text, nullable=True)
+
+    consultant_hypothesis = Column(String(200), nullable=True)
+    consultant_is_malignant = Column(Boolean, default=False, nullable=False)
+
+    # ---- Status e fluxo ----
+    status = Column(
+        Enum(CaseStatus, name="casestatus"),
+        default=CaseStatus.draft,
+        nullable=False,
+        index=True,
+    )
+
     is_biopsied = Column(Boolean, default=False, nullable=False)
 
+    # ---- Atribuição ao teleconsultor ----
+    assigned_to_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    assigned_to = relationship("User", foreign_keys=[assigned_to_user_id])
+    pathologist_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    pathologist = relationship("User", foreign_keys=[pathologist_user_id])
+    regulator_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    regulator = relationship("User", foreign_keys=[regulator_user_id])
+
+    pathology_diagnosis = Column(Text, nullable=True)
+    pathology_report = Column(Text, nullable=True)
+    pathology_reported_at = Column(DateTime, nullable=True)
+
+    regulation_status = Column(
+        Enum(RegulationStatus, name="regulationstatus"),
+        default=RegulationStatus.none,
+        nullable=False,
+        index=True,
+    )
+    regulation_notes = Column(Text, nullable=True)
+
+    submitted_at = Column(DateTime, nullable=True)
+    assigned_at = Column(DateTime, nullable=True)
+    answered_at = Column(DateTime, nullable=True)
+    regulated_at = Column(DateTime, nullable=True)
+    closed_at = Column(DateTime, nullable=True)
+
+    # ---- Mídias ----
     media = relationship(
         "CaseMedia",
         back_populates="case",
         cascade="all, delete-orphan",
         passive_deletes=True,
     )
-
-    # Atribuição ao teleconsultor
-    assigned_to_user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
-    assigned_to = relationship("User", foreign_keys=[assigned_to_user_id])
-
-    submitted_at = Column(DateTime, nullable=True)
-    assigned_at = Column(DateTime, nullable=True)
-    answered_at = Column(DateTime, nullable=True)
-    closed_at = Column(DateTime, nullable=True)
-
-class CaseMedia(Base):
-    __tablename__ = "case_media"
-
-    id = Column(Integer, primary_key=True, index=True)
-    uploaded_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    case_id = Column(Integer, ForeignKey("clinical_cases.id", ondelete="CASCADE"), nullable=False, index=True)
-    case = relationship("ClinicalCase", back_populates="media")
-
-    media_type = Column(Enum(MediaType), nullable=False, index=True)
-    file_path = Column(Text, nullable=False)
-    original_filename = Column(Text, nullable=True)
-    content_type = Column(String(120), nullable=True)

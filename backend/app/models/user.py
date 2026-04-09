@@ -13,6 +13,13 @@ class UserRole(str, enum.Enum):
     REGULATOR = "REGULATOR"
     ADMIN = "ADMIN"
 
+
+class ApprovalStatus(str, enum.Enum):
+    approved = "approved"
+    pending = "pending"
+    rejected = "rejected"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -26,9 +33,13 @@ class User(Base):
     role = Column(Enum(UserRole, name="user_role"), nullable=False)
 
     is_active = Column(Boolean, default=True, nullable=False)
+    approval_status = Column(
+        Enum(ApprovalStatus, name="approvalstatus"),
+        default=ApprovalStatus.approved,
+        nullable=False,
+    )
+    approved_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     profile = relationship("ProfessionalProfile", back_populates="user", uselist=False)
-
-

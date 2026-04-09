@@ -1,18 +1,5 @@
-from pydantic import BaseModel, Field
 from typing import Optional
-from datetime import datetime
-
-class AnswerCreate(BaseModel):
-    diagnostic_opinion: str
-    conduct: str
-    care_coordination: str
-    references: Optional[str] = None
-
-class AnswerOut(AnswerCreate):
-    id: int
-    case_id: int
-    consultant_user_id: int
-    answered_at: datetime
+from pydantic import BaseModel, Field
 
 class ConsultantAnswerCreate(BaseModel):
     clinical_description: str = Field(..., min_length=3)
@@ -23,10 +10,3 @@ class ConsultantAnswerCreate(BaseModel):
 
     consultant_hypothesis: Optional[str] = None
     consultant_is_malignant: Optional[bool] = None
-
-
-    class Config:
-        from_attributes = True
-
-
-
