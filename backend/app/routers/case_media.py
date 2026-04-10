@@ -45,6 +45,7 @@ async def upload_case_media_batch(
         media = create_media_record(
             db,
             case_id=case_id,
+            uploader_user_id=current_user.id,
             media_type=media_type,
             file_path=str(dest),
             original_filename=f.filename,

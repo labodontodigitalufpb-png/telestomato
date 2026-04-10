@@ -25,7 +25,7 @@ class ProfileBase(BaseModel):
     def validate_state(cls, v: str):
         v = v.strip().upper()
         if len(v) != 2:
-            raise ValueError("state deve ser UF com 2 letras (ex: PB, SP)")
+            raise ValueError("A UF deve ter 2 letras (ex.: PB, SP).")
         return v
 
     @field_validator("teleconsultant_state")
@@ -35,7 +35,7 @@ class ProfileBase(BaseModel):
             return v
         v = v.strip().upper()
         if len(v) != 2:
-            raise ValueError("teleconsultant_state deve ser UF com 2 letras")
+            raise ValueError("A UF do teleconsultor deve ter 2 letras.")
         return v
 
 class ProfileCreate(ProfileBase):

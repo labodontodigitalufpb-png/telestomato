@@ -17,3 +17,4 @@ class NotificationOut(BaseModel):
     title: str
     body: str
     notification_type: NotificationType
+    patient_name: str | None = None

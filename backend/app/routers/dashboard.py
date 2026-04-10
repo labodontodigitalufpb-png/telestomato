@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from app.core.db import get_db
 from app.models.case import ClinicalCase, CaseStatus
+from app.models.user import User, UserRole
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -20,6 +21,12 @@ class SummaryResponse(BaseModel):
     since: str
     total: int
     by_status: Dict[str, int]
+    suspected_cases: int
+    avg_patient_age: Optional[float]
+    by_sex: Dict[str, int]
+    professionals_total: int
+    teleconsultants_total: int
+    professionals_by_role: Dict[str, int]
 
 
 class StateCountItem(BaseModel):
@@ -101,10 +108,63 @@ def summary(
 
     by_status = {status.value: int(count) for status, count in rows}
 
+    suspected_cases = (
+        db.query(func.count(ClinicalCase.id))
+        .filter(ClinicalCase.created_at >= since)
+        .filter(ClinicalCase.consultant_is_malignant.is_(True))
+        .scalar()
+    )
+
+    avg_patient_age = (
+        db.query(func.avg(ClinicalCase.patient_age))
+        .filter(ClinicalCase.created_at >= since)
+        .filter(ClinicalCase.patient_age.isnot(None))
+        .scalar()
+    )
+
+    sex_rows = (
+        db.query(ClinicalCase.patient_sex, func.count(ClinicalCase.id))
+        .filter(ClinicalCase.created_at >= since)
+        .filter(ClinicalCase.patient_sex.isnot(None))
+        .group_by(ClinicalCase.patient_sex)
+        .all()
+    )
+    by_sex = {str(sex).upper(): int(count) for sex, count in sex_rows if sex}
+
+    professionals_total = (
+        db.query(func.count(User.id))
+        .filter(User.role != UserRole.ADMIN)
+        .scalar()
+    )
+
+    teleconsultants_total = (
+        db.query(func.count(User.id))
+        .filter(User.role == UserRole.TELECONSULTANT)
+        .scalar()
+    )
+
+    role_rows = (
+        db.query(User.role, func.count(User.id))
+        .filter(User.role != UserRole.ADMIN)
+        .group_by(User.role)
+        .all()
+    )
+    professionals_by_role = {
+        (role.value if hasattr(role, "value") else str(role)): int(count)
+        for role, count in role_rows
+        if role
+    }
+
     return {
         "since": since.isoformat(),
         "total": int(total or 0),
         "by_status": by_status,
+        "suspected_cases": int(suspected_cases or 0),
+        "avg_patient_age": float(avg_patient_age) if avg_patient_age is not None else None,
+        "by_sex": by_sex,
+        "professionals_total": int(professionals_total or 0),
+        "teleconsultants_total": int(teleconsultants_total or 0),
+        "professionals_by_role": professionals_by_role,
     }
 
 

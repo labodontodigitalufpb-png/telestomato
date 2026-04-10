@@ -117,6 +117,7 @@ class ClinicalCase(Base):
     followup_1m_head_neck_seen = Column(Boolean, nullable=True)
     followup_3m_initial_treatment_done = Column(Boolean, nullable=True)
     followup_6m_status = Column(Text, nullable=True)
+    followup_1y_status = Column(Text, nullable=True)
     followup_main_barriers = Column(Text, nullable=True)
 
     submitted_at = Column(DateTime, nullable=True)

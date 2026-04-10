@@ -861,6 +861,43 @@
       box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
     }
 
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      padding: 0;
+      border-radius: 6px;
+      accent-color: var(--brand);
+      border: 1px solid var(--line);
+      box-shadow: none;
+      flex: 0 0 18px;
+      margin: 0;
+    }
+
+    input[type="checkbox"]:focus {
+      box-shadow: 0 0 0 3px rgba(11, 122, 165, 0.18);
+    }
+
+    .check-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fcfdff;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+    }
+
     button {
       border: none;
       border-radius: 14px;

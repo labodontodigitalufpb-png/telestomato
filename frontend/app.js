@@ -2,6 +2,8 @@
     let currentUser = null;
     let activeMediaGallery = [];
     let activeMediaIndex = -1;
+    let dashboardAutoRefreshTimer = null;
+    let notificationsCache = [];
 
     function $(id) {
       return document.getElementById(id);
@@ -42,6 +44,29 @@
         ADMIN: "Administrador"
       };
       return labels[role] || role || "-";
+    }
+
+    function formatClinicalStatus(status) {
+      const key = String(status || "").toLowerCase();
+      const labels = {
+        draft: "Rascunho",
+        submitted: "Submetido",
+        assigned: "Em revisão",
+        answered: "Respondido",
+        closed: "Fechado",
+      };
+      return labels[key] || status || "-";
+    }
+
+    function formatRegulationStatus(status) {
+      const key = String(status || "").toLowerCase();
+      const labels = {
+        none: "Não iniciado",
+        pending: "Pendente",
+        in_review: "Em revisão",
+        completed: "Respondido",
+      };
+      return labels[key] || status || "-";
     }
 
     function getCurrentRole() {
@@ -111,7 +136,9 @@
     }
 
     function buildMediaUrl(caseId, mediaId) {
-      return `${window.location.origin}/cases/${caseId}/media/${mediaId}/file`;
+      const token = localStorage.getItem(TOKEN_KEY);
+      const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : "";
+      return `${window.location.origin}/cases/${caseId}/media/${mediaId}/file${tokenQuery}`;
     }
 
     function getMediaKind(item) {
@@ -147,7 +174,7 @@
         body.innerHTML = `
           <div class="lightbox-file">
             <strong>${escapeHtml(getMediaKindLabel(item))}</strong>
-            <p>Abra o arquivo em uma nova aba para visualizar o conteudo completo.</p>
+            <p>Abra o arquivo em uma nova aba para visualizar o conteúdo completo.</p>
             <a class="primary lightbox-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">Abrir arquivo</a>
           </div>
         `;
@@ -205,6 +232,59 @@
       link.remove();
     }
 
+    function isPdfMedia(item) {
+      const contentType = String(item?.content_type || "").toLowerCase();
+      const name = String(item?.original_filename || "").toLowerCase();
+      return contentType === "application/pdf" || name.endsWith(".pdf");
+    }
+
+    function splitMicroscopicReportMedia(mediaItems, caseData) {
+      const items = Array.isArray(mediaItems) ? mediaItems : [];
+      const pathologistUserId = Number(caseData?.pathologist_user_id || 0);
+      let microscopicReports = items.filter((item) => {
+        if (!isPdfMedia(item)) return false;
+        if (!pathologistUserId) return false;
+        return Number(item?.uploader_user_id || 0) === pathologistUserId;
+      });
+      // Compatibilidade: PDFs antigos (antes de salvar uploader_user_id) podem ficar sem autor.
+      // Se não houver match por autor, usamos PDFs de exame como melhor aproximação do laudo.
+      if (!microscopicReports.length) {
+        microscopicReports = items.filter((item) => isPdfMedia(item) && String(item?.media_type || "") === "exam");
+      }
+      const reportIds = new Set(microscopicReports.map((item) => item.id));
+      const otherMedia = items.filter((item) => !reportIds.has(item.id));
+      return { microscopicReports, otherMedia };
+    }
+
+    function renderMicroscopicReports(id, caseId, mediaItems, emptyMessage) {
+      const el = $(id);
+      if (!el) return;
+      if (!mediaItems || !mediaItems.length) {
+        el.innerHTML = `<div class="detail-card muted">${escapeHtml(emptyMessage)}</div>`;
+        return;
+      }
+      const sorted = [...mediaItems].sort((a, b) => {
+        const da = new Date(a.uploaded_at || 0).getTime();
+        const db = new Date(b.uploaded_at || 0).getTime();
+        return db - da;
+      });
+      el.innerHTML = sorted
+        .map((item) => {
+          const label = item.original_filename || `Laudo histopatológico ${item.id}.pdf`;
+          const url = buildMediaUrl(caseId, item.id);
+          return `
+            <div class="detail-card">
+              <strong>${escapeHtml(label)}</strong>
+              <p>PDF • ${escapeHtml(formatDateTime(item.uploaded_at))}</p>
+              <div class="actions">
+                <button class="soft" type="button" onclick="downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Baixar PDF</button>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
     function renderMediaGallery(id, caseId, mediaItems, emptyMessage) {
       const el = $(id);
       if (!el) return;
@@ -230,7 +310,7 @@
                 <img src="${escapeHtml(fileUrl)}" alt="${escapeHtml(label)}" />
                 <strong>${escapeHtml(label)}</strong>
                 <span>${escapeHtml(meta)}</span>
-                <button class="media-download" type="button" onclick="event.stopPropagation(); downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Download</button>
+                <button class="media-download" type="button" onclick="event.stopPropagation(); downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Baixar</button>
               </button>
             `;
           }
@@ -240,7 +320,7 @@
                 <strong>${escapeHtml(getMediaKindLabel(item))}</strong>
                 <span>${escapeHtml(label)}</span>
                 <small>${escapeHtml(meta)}</small>
-                <button class="media-download" type="button" onclick="event.stopPropagation(); downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Download</button>
+                <button class="media-download" type="button" onclick="event.stopPropagation(); downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Baixar</button>
               </button>
             `;
           }
@@ -249,7 +329,7 @@
               <strong>${escapeHtml(getMediaKindLabel(item))}</strong>
               <span>${escapeHtml(label)}</span>
               <small>${escapeHtml(meta)}</small>
-              <button class="media-download" type="button" onclick="event.stopPropagation(); downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Download</button>
+              <button class="media-download" type="button" onclick="event.stopPropagation(); downloadMedia(${caseId}, ${item.id}, ${JSON.stringify(label)})">Baixar</button>
             </button>
           `;
         })
@@ -274,7 +354,7 @@
       thread.innerHTML = messages
         .map((item) => {
           const isMine = currentUser && item.author_user_id === currentUser.id;
-          const authorLabel = isMine ? "Voce" : `Usuario ${item.author_user_id}`;
+          const authorLabel = isMine ? "Você" : `Usuário ${item.author_user_id}`;
           return `
             <div class="chat-bubble ${isMine ? "mine" : "theirs"}">
               <span>${escapeHtml(authorLabel)} • ${escapeHtml(formatDateTime(item.created_at))}</span>
@@ -288,32 +368,39 @@
 
     function fillTeleCaseContext(data) {
       setText("tele_ctx_patient", data?.patient_name);
-      setText("tele_ctx_status", data?.status);
+      setText("tele_ctx_status", formatClinicalStatus(data?.status));
       setText("tele_ctx_topography", data?.lesion_topography);
       setText("tele_ctx_dentist_hypothesis", data?.dentist_hypotheses);
-      setText("tele_ctx_complaint", data?.chief_complaint || "Carregue um caso para visualizar o contexto clinico.");
+      setText("tele_ctx_complaint", data?.chief_complaint || "Carregue um caso para visualizar o contexto clínico.");
       setText("tele_ctx_oral", data?.oral_description);
       renderDetailCards(
         "tele_ctx_clinical",
         [
-          { title: "Historia da doenca atual", body: data?.hpi },
-          { title: "Historia medica", body: data?.medical_history },
-          { title: "Historia odontologica", body: data?.dental_history },
-          { title: "Habitos", body: data?.habits },
-          { title: "Medicacoes", body: data?.meds_history },
+          { title: "História da doença atual", body: data?.hpi },
+          { title: "História médica", body: data?.medical_history },
+          { title: "História odontológica", body: data?.dental_history },
+          { title: "Hábitos", body: data?.habits },
+          { title: "Medicações", body: data?.meds_history },
           { title: "Sinais vitais e achados gerais", body: data?.vitals },
-          { title: "Descricao clinica oral", body: data?.oral_description },
+          { title: "Descrição clínica oral", body: data?.oral_description },
         ],
         "Carregue um caso para visualizar a anamnese completa."
       );
-      renderMediaGallery("tele_ctx_media", data?.id, data?.media || [], "Carregue um caso para visualizar as mídias.");
+      const teleMedia = splitMicroscopicReportMedia(data?.media || [], data);
+      renderMicroscopicReports(
+        "tele_ctx_micro_report",
+        data?.id,
+        teleMedia.microscopicReports,
+        "Nenhum laudo histopatológico (PDF) carregado."
+      );
+      renderMediaGallery("tele_ctx_media", data?.id, teleMedia.otherMedia, "Nenhuma mídia carregada para este caso.");
       renderDetailCards(
         "tele_ctx_pathology",
         [
-          { title: "Diagnostico histopatologico", body: data?.pathology_diagnosis },
-          { title: "Laudo histopatologico", body: data?.pathology_report },
+          { title: "Diagnóstico histopatológico", body: data?.pathology_diagnosis },
+          { title: "Laudo enviado", body: data?.pathology_report },
         ],
-        "Nenhum laudo histopatológico registrado ainda."
+        "Nenhum laudo enviado ainda."
       );
 
       if (!data) return;
@@ -331,27 +418,34 @@
     function fillRegulationCaseContext(data) {
       setText("reg_ctx_patient", data?.patient_name);
       setText("reg_ctx_patient_phone", data?.patient_phone);
-      setText("reg_ctx_case_status", data?.status);
-      setText("reg_ctx_reg_status", data?.regulation_status);
-      setText("reg_ctx_malignant", data?.consultant_is_malignant == null ? "-" : (data.consultant_is_malignant ? "Sim" : "Nao"));
-      setText("reg_ctx_hypothesis", data?.consultant_hypothesis || data?.consultant_hypotheses || "Carregue um caso para visualizar a sintese do teleconsultor.");
+      setText("reg_ctx_case_status", formatClinicalStatus(data?.status));
+      setText("reg_ctx_reg_status", formatRegulationStatus(data?.regulation_status));
+      setText("reg_ctx_malignant", data?.consultant_is_malignant == null ? "-" : (data.consultant_is_malignant ? "Sim" : "Não"));
+      setText("reg_ctx_hypothesis", data?.consultant_hypothesis || data?.consultant_hypotheses || "Carregue um caso para visualizar a síntese do teleconsultor.");
       setText("reg_ctx_conduct", [data?.consultant_conduct, data?.consultant_care_coordination].filter(Boolean).join(" | "));
       setText("reg_ctx_notes", data?.regulation_notes);
       renderDetailCards(
         "reg_ctx_clinical",
         [
           { title: "Queixa principal", body: data?.chief_complaint },
-          { title: "Historia da doenca atual", body: data?.hpi },
-          { title: "Historia medica", body: data?.medical_history },
-          { title: "Historia odontologica", body: data?.dental_history },
-          { title: "Habitos", body: data?.habits },
-          { title: "Medicacoes", body: data?.meds_history },
+          { title: "História da doença atual", body: data?.hpi },
+          { title: "História médica", body: data?.medical_history },
+          { title: "História odontológica", body: data?.dental_history },
+          { title: "Hábitos", body: data?.habits },
+          { title: "Medicações", body: data?.meds_history },
           { title: "Sinais vitais e achados gerais", body: data?.vitals },
-          { title: "Descricao clinica oral", body: data?.oral_description },
+          { title: "Descrição clínica oral", body: data?.oral_description },
         ],
         "Carregue um caso para visualizar a anamnese completa."
       );
-      renderMediaGallery("reg_ctx_media", data?.id, data?.media || [], "Carregue um caso para visualizar as mídias.");
+      const regMedia = splitMicroscopicReportMedia(data?.media || [], data);
+      renderMicroscopicReports(
+        "reg_ctx_micro_report",
+        data?.id,
+        regMedia.microscopicReports,
+        "Nenhum laudo histopatológico (PDF) carregado."
+      );
+      renderMediaGallery("reg_ctx_media", data?.id, regMedia.otherMedia, "Nenhuma mídia carregada para este caso.");
 
       if (!data) return;
       $("reg_case_id").value = data.id || $("reg_case_id").value;
@@ -360,37 +454,45 @@
       $("reg_followup_1m").value = data.followup_1m_head_neck_seen == null ? "" : String(data.followup_1m_head_neck_seen);
       $("reg_followup_3m").value = data.followup_3m_initial_treatment_done == null ? "" : String(data.followup_3m_initial_treatment_done);
       $("reg_followup_6m_status").value = data.followup_6m_status || "";
+      $("reg_followup_1y_status").value = data.followup_1y_status || "";
       $("reg_followup_barriers").value = data.followup_main_barriers || "";
     }
 
     function fillCaseDetailContext(data) {
       setText("case_ctx_id", data?.id);
-      setText("case_ctx_status", data?.status);
+      setText("case_ctx_status", formatClinicalStatus(data?.status));
       setText("case_ctx_patient", data?.patient_name);
       setText("case_ctx_topography", data?.lesion_topography);
       setText("case_ctx_complaint", data?.chief_complaint || "Abra um caso para acompanhar a resposta da teleconsultoria.");
       renderDetailCards(
         "case_ctx_clinical",
         [
-          { title: "Historia da doenca atual", body: data?.hpi },
-          { title: "Historia medica", body: data?.medical_history },
-          { title: "Historia odontologica", body: data?.dental_history },
-          { title: "Habitos", body: data?.habits },
-          { title: "Medicacoes", body: data?.meds_history },
+          { title: "História da doença atual", body: data?.hpi },
+          { title: "História médica", body: data?.medical_history },
+          { title: "História odontológica", body: data?.dental_history },
+          { title: "Hábitos", body: data?.habits },
+          { title: "Medicações", body: data?.meds_history },
           { title: "Sinais vitais e achados gerais", body: data?.vitals },
-          { title: "Descricao clinica oral", body: data?.oral_description },
-          { title: "Hipoteses do solicitante", body: data?.dentist_hypotheses },
+          { title: "Descrição clínica oral", body: data?.oral_description },
+          { title: "Hipóteses do solicitante", body: data?.dentist_hypotheses },
         ],
         "Abra um caso para visualizar a anamnese completa."
       );
-      renderMediaGallery("case_ctx_media", data?.id, data?.media || [], "Nenhuma mídia carregada para este caso.");
+      const caseMedia = splitMicroscopicReportMedia(data?.media || [], data);
+      renderMicroscopicReports(
+        "case_ctx_micro_report",
+        data?.id,
+        caseMedia.microscopicReports,
+        "Nenhum laudo histopatológico (PDF) carregado."
+      );
+      renderMediaGallery("case_ctx_media", data?.id, caseMedia.otherMedia, "Nenhuma mídia carregada para este caso.");
 
       renderDetailCards(
         "case_ctx_consultant",
         [
-          { title: "Hipotese principal", body: data?.consultant_hypothesis },
-          { title: "Sintese clinica", body: data?.consultant_summary },
-          { title: "Hipoteses justificadas", body: data?.consultant_hypotheses },
+          { title: "Hipótese principal", body: data?.consultant_hypothesis },
+          { title: "Síntese clínica", body: data?.consultant_summary },
+          { title: "Hipóteses justificadas", body: data?.consultant_hypotheses },
           { title: "Bibliografia", body: data?.consultant_bibliography },
         ],
         "Nenhuma resposta registrada ainda."
@@ -399,8 +501,8 @@
       renderDetailCards(
         "case_ctx_conduct",
         [
-          { title: "Conduta clinica", body: data?.consultant_conduct },
-          { title: "Coordenacao do cuidado", body: data?.consultant_care_coordination },
+          { title: "Conduta clínica", body: data?.consultant_conduct },
+          { title: "Coordenação do cuidado", body: data?.consultant_care_coordination },
         ],
         "-"
       );
@@ -408,34 +510,35 @@
       renderDetailCards(
         "case_ctx_regulation",
         [
-          { title: "Status regulatorio", body: data?.regulation_status },
+          { title: "Status regulatório", body: formatRegulationStatus(data?.regulation_status) },
           {
             title: "Suspeita de malignidade",
-            body: data?.consultant_is_malignant == null ? "" : (data.consultant_is_malignant ? "Sim" : "Nao"),
+            body: data?.consultant_is_malignant == null ? "" : (data.consultant_is_malignant ? "Sim" : "Não"),
           },
-          { title: "Notas regulatorias", body: data?.regulation_notes },
-          { title: "Data do laudo microscopico", body: data?.microscopic_report_date },
+          { title: "Notas regulatórias", body: data?.regulation_notes },
+          { title: "Data do laudo histopatológico", body: data?.microscopic_report_date },
           {
-            title: "Follow-up 1 mes (cabeca e pescoco)",
-            body: data?.followup_1m_head_neck_seen == null ? "" : (data.followup_1m_head_neck_seen ? "Sim" : "Nao"),
+            title: "Follow-up 1 mês (cabeça e pescoço)",
+            body: data?.followup_1m_head_neck_seen == null ? "" : (data.followup_1m_head_neck_seen ? "Sim" : "Não"),
           },
           {
             title: "Follow-up 3 meses (tratamento inicial)",
-            body: data?.followup_3m_initial_treatment_done == null ? "" : (data.followup_3m_initial_treatment_done ? "Sim" : "Nao"),
+            body: data?.followup_3m_initial_treatment_done == null ? "" : (data.followup_3m_initial_treatment_done ? "Sim" : "Não"),
           },
           { title: "Follow-up 6 meses", body: data?.followup_6m_status },
+          { title: "Follow-up 1 ano", body: data?.followup_1y_status },
           { title: "Principais barreiras", body: data?.followup_main_barriers },
         ],
-        "Sem atualizacao regulatoria no momento."
+        "Sem atualização regulatória no momento."
       );
 
       renderDetailCards(
         "case_ctx_pathology",
         [
-          { title: "Diagnostico histopatologico", body: data?.pathology_diagnosis },
-          { title: "Laudo histopatologico", body: data?.pathology_report },
+          { title: "Diagnóstico histopatológico", body: data?.pathology_diagnosis },
+          { title: "Laudo enviado", body: data?.pathology_report },
         ],
-        "Nenhum laudo histopatológico registrado ainda."
+        "Nenhum laudo enviado ainda."
       );
     }
 
@@ -472,31 +575,38 @@
 
     function fillPathologyCaseContext(data) {
       setText("path_ctx_patient", data?.patient_name);
-      setText("path_ctx_status", data?.status);
+      setText("path_ctx_status", formatClinicalStatus(data?.status));
       setText("path_ctx_topography", data?.lesion_topography);
       setText("path_ctx_dentist_hypothesis", data?.dentist_hypotheses);
-      setText("path_ctx_complaint", data?.chief_complaint || "Carregue um caso para visualizar o contexto clinico.");
+      setText("path_ctx_complaint", data?.chief_complaint || "Carregue um caso para visualizar o contexto clínico.");
       renderDetailCards(
         "path_ctx_clinical",
         [
-          { title: "Historia da doenca atual", body: data?.hpi },
-          { title: "Historia medica", body: data?.medical_history },
-          { title: "Historia odontologica", body: data?.dental_history },
-          { title: "Habitos", body: data?.habits },
-          { title: "Medicacoes", body: data?.meds_history },
+          { title: "História da doença atual", body: data?.hpi },
+          { title: "História médica", body: data?.medical_history },
+          { title: "História odontológica", body: data?.dental_history },
+          { title: "Hábitos", body: data?.habits },
+          { title: "Medicações", body: data?.meds_history },
           { title: "Sinais vitais e achados gerais", body: data?.vitals },
-          { title: "Descricao clinica oral", body: data?.oral_description },
+          { title: "Descrição clínica oral", body: data?.oral_description },
         ],
         "Carregue um caso para visualizar a anamnese completa."
       );
-      renderMediaGallery("path_ctx_media", data?.id, data?.media || [], "Carregue um caso para visualizar as mídias.");
+      const pathMedia = splitMicroscopicReportMedia(data?.media || [], data);
+      renderMicroscopicReports(
+        "path_ctx_micro_report",
+        data?.id,
+        pathMedia.microscopicReports,
+        "Nenhum laudo histopatológico (PDF) carregado."
+      );
+      renderMediaGallery("path_ctx_media", data?.id, pathMedia.otherMedia, "Nenhuma mídia carregada para este caso.");
       renderDetailCards(
         "path_ctx_report",
         [
-          { title: "Diagnostico histopatologico", body: data?.pathology_diagnosis },
-          { title: "Laudo histopatologico", body: data?.pathology_report },
+          { title: "Diagnóstico histopatológico", body: data?.pathology_diagnosis },
+          { title: "Laudo enviado", body: data?.pathology_report },
         ],
-        "Nenhum laudo registrado ainda."
+        "Nenhum laudo enviado ainda."
       );
 
       if (!data) return;
@@ -511,11 +621,9 @@
         .filter(Boolean);
     }
 
-    function getSelectedValues(selectId) {
-      const select = $(selectId);
-      if (!select) return [];
-      return Array.from(select.selectedOptions || [])
-        .map((option) => option.value)
+    function getCheckedValues(fieldName) {
+      return Array.from(document.querySelectorAll(`input[name="${fieldName}"]:checked`))
+        .map((input) => input.value)
         .filter(Boolean);
     }
 
@@ -541,7 +649,7 @@
 
     async function uploadCreateMedia(caseId, mediaTypes, files) {
       if (!files.length) return [];
-      if (!mediaTypes.length) throw new Error("Selecione ao menos um tipo de midia.");
+      if (!mediaTypes.length) throw new Error("Selecione ao menos um tipo de mídia.");
 
       if (mediaTypes.length === 1) {
         return [await uploadMediaBatch(caseId, mediaTypes[0], files)];
@@ -549,7 +657,7 @@
 
       if (mediaTypes.length !== files.length) {
         throw new Error(
-          "Selecione 1 tipo para todos os arquivos ou a mesma quantidade de tipos e midias."
+          "Selecione 1 tipo para todos os arquivos ou a mesma quantidade de tipos e mídias."
         );
       }
 
@@ -567,11 +675,11 @@
         renderTimeline(
           "case_ctx_notifications",
           caseNotifications.map((item) => ({
-            meta: `${item.notification_type} • ${item.is_read ? "lida" : "nao lida"}`,
+            meta: `${item.notification_type} • ${item.is_read ? "lida" : "não lida"}`,
             title: item.title,
             body: item.body,
           })),
-          "Nenhuma notificacao carregada para este caso."
+          "Nenhuma notificação carregada para este caso."
         );
         showMessage("Avisos do caso atualizados.", "success");
       } catch (error) {
@@ -601,103 +709,99 @@
     let currentAppPage = "session";
 
     function getDefaultPageForRole(role) {
-      if (role === "DENTIST" || role === "ADMIN") return "case-manage";
-      if (role === "TELECONSULTANT") return "tele";
-      if (role === "PATHOLOGIST") return "pathology";
-      if (role === "REGULATOR") return "regulation";
       return "session";
     }
 
     function getPageDescription(page) {
       const descriptions = {
-        session: "Resumo da sessao autenticada e acoes basicas da conta.",
-        "dentist-home": "Painel do profissional com abertura de novo caso, acompanhamento e chat.",
-        "tele-home": "Painel do teleconsultor com novos casos, respostas clinicas e comunicacao.",
+        session: "Resumo da sessão autenticada e ações básicas da conta.",
+        "dentist-home": "Painel do profissional com abertura de novo caso, acompanhamento e conversa.",
+        "tele-home": "Painel do teleconsultor com novos casos, respostas clínicas e comunicação.",
         "pathology-home": "Painel do patologista com acesso aos casos completos e envio de laudos.",
         "reg-home": "Painel do regulador com foco nos casos suspeitos detalhados.",
-        "case-create": "Tela de abertura de novo caso clinico pelo profissional solicitante.",
-        "case-manage": "Tela de consulta, anexo e submissao dos casos do solicitante.",
-        chat: "Tela de comunicacao entre os envolvidos no caso.",
-        notifications: "Tela de notificacoes e acompanhamento de atualizacoes.",
+        "case-create": "Tela de abertura de novo caso clínico pelo profissional solicitante.",
+        "case-manage": "Tela de consulta, anexo e submissão dos casos do solicitante.",
+        chat: "Tela de conversa entre os envolvidos no caso.",
+        notifications: "Tela de notificações e acompanhamento de atualizações.",
         tele: "Tela de trabalho do teleconsultor para responder casos.",
-        pathology: "Tela do patologista para revisar casos completos e enviar laudo histopatologico.",
-        regulation: "Tela de fila e conclusao da telerregulacao."
+        pathology: "Tela do patologista para revisar casos completos e enviar laudo histopatológico.",
+        regulation: "Tela de fila e conclusão da telerregulação."
       };
-      return descriptions[page] || "Escolha um modulo para continuar.";
+      return descriptions[page] || "Escolha um módulo para continuar.";
     }
 
     function getPageMeta(page) {
       const meta = {
         session: {
-          title: "Inicio",
-          subtitle: "Resumo rapido da sessao, do perfil e dos proximos passos.",
-          context: "Use esta tela como ponto de partida para confirmar perfil, atualizar sessao e navegar para o fluxo principal.",
+          title: "Início",
+          subtitle: "Resumo rápido da sessão, do perfil e dos próximos passos.",
+          context: "Use esta tela como ponto de partida para confirmar perfil, atualizar sessão e navegar para o fluxo principal.",
           icon: "⌂"
         },
         "dentist-home": {
           title: "Painel do profissional",
           subtitle: "Abra um novo caso, acompanhe pacientes e converse com a equipe.",
-          context: "Esta area concentra o relato de novos casos, o acompanhamento dos pacientes enviados e o chat do caso.",
+          context: "Esta área concentra o relato de novos casos, o acompanhamento dos pacientes enviados e a conversa do caso.",
           icon: "⌂"
         },
         "tele-home": {
           title: "Painel da teleconsultoria",
-          subtitle: "Receba novos casos, responda e acompanhe o chat clinico.",
-          context: "O teleconsultor pode assumir o proximo caso, revisar casos atribuidos e registrar a resposta tecnica.",
+          subtitle: "Receba novos casos, responda e acompanhe a conversa clínica.",
+          context: "O teleconsultor pode assumir o próximo caso, revisar casos atribuídos e registrar a resposta técnica.",
           icon: "◎"
         },
         "pathology-home": {
           title: "Painel da patologia",
-          subtitle: "Acesse casos completos e envie laudos histopatologicos.",
-          context: "O patologista consulta os casos pelo nome do paciente, revisa o material clinico e envia o laudo para o profissional e para o teleconsultor.",
+          subtitle: "Acesse casos completos e envie laudos histopatológicos.",
+          context: "O patologista consulta os casos pelo nome do paciente, revisa o material clínico e envia o laudo para o profissional e para o teleconsultor.",
           icon: "◉"
         },
         "reg-home": {
-          title: "Painel da regulacao",
-          subtitle: "Acesse os casos suspeitos detalhados e conduza a fila regulatoria.",
-          context: "O regulador trabalha sobre os casos suspeitos, abrindo o detalhe clinico e registrando o desfecho regulatorio.",
+          title: "Painel da regulação",
+          subtitle: "Acesse os casos suspeitos detalhados e conduza a fila regulatória.",
+          context: "O regulador trabalha sobre os casos suspeitos, abrindo o detalhe clínico e registrando o desfecho regulatório.",
           icon: "↗"
         },
         "case-create": {
           title: "Relatar caso",
-          subtitle: "Abertura estruturada de novo caso clinico.",
-          context: "Preencha os dados do paciente, a historia clinica e os achados principais para iniciar a teleinterconsulta.",
+          subtitle: "Abertura estruturada de novo caso clínico.",
+          context: "Preencha os dados do paciente, a história clínica e os achados principais para iniciar a teleinterconsulta.",
           icon: "+"
         },
         "case-manage": {
           title: "Meus casos",
-          subtitle: "Consulta, anexos e submissao dos casos em andamento.",
-          context: "Depois de criar o caso, use esta tela para revisar o ID, anexar arquivos e enviar o caso para a fila clinica.",
+          subtitle: "Consulta, anexos e submissão dos casos em andamento.",
+          context: "Depois de criar o caso, use esta tela para revisar o ID, anexar arquivos e enviar o caso para a fila clínica.",
           icon: "◫"
         },
         chat: {
-          title: "Chat do caso",
-          subtitle: "Comunicacao direta entre os envolvidos no caso.",
-          context: "Use o chat para complementar informacoes, solicitar esclarecimentos e manter o acompanhamento registrado.",
+          title: "Conversa do caso",
+          subtitle: "Comunicação direta entre os envolvidos no caso.",
+          context: "Use a conversa para complementar informações, solicitar esclarecimentos e manter o acompanhamento registrado.",
           icon: "✉"
         },
         notifications: {
-          title: "Notificacoes",
-          subtitle: "Avisos de resposta, mensagem nova e regulacao.",
-          context: "Aqui ficam as atualizacoes mais recentes do caso para acompanhamento do profissional e da equipe assistencial.",
+          title: "Notificações",
+          subtitle: "Avisos de resposta, mensagem nova e regulação.",
+          context: "Aqui ficam as atualizações mais recentes do caso para acompanhamento do profissional e da equipe assistencial.",
           icon: "!"
         },
         tele: {
           title: "Teleconsultoria",
-          subtitle: "Fila e resposta clinica do especialista.",
-          context: "O teleconsultor usa esta tela para assumir casos, responder e sinalizar suspeitas que demandem regulacao.",
+          subtitle: "Fila e resposta clínica do especialista.",
+          context: "O teleconsultor usa esta tela para assumir casos, responder e sinalizar suspeitas que demandem regulação.",
           icon: "◎"
         },
         pathology: {
           title: "Patologia",
-          subtitle: "Laudo histopatologico por caso.",
+          subtitle: "Laudo histopatológico por caso.",
           context: "O patologista revisa o caso completo, acessa as mídias e envia o laudo histopatológico para o profissional e para o teleconsultor.",
           icon: "◉"
         },
         regulation: {
-          title: "Telerregulacao",
-          subtitle: "Fila de casos suspeitos e encaminhamento regulatorio.",
-          context: "O regulador acompanha casos suspeitos, assume a analise e registra o desfecho regulatorio do atendimento.",
+          title: "Telerregulação",
+          subtitle: "Fila de casos suspeitos e encaminhamento regulatório.",
+          context: "O regulador acompanha casos suspeitos, assume a análise e registra o desfecho regulatório do atendimento.",
           icon: "↗"
         }
       };
@@ -734,23 +838,23 @@
       const byRole = {
         DENTIST: {
           title: "Painel do profissional",
-          subtitle: "Nova pagina de trabalho com relato de caso, acompanhamento e chat."
+          subtitle: "Nova página de trabalho com relato de caso, acompanhamento e conversa."
         },
         ADMIN: {
           title: "Painel administrativo",
-          subtitle: "Acesso ampliado aos modulos do fluxo clinico."
+          subtitle: "Acesso ampliado aos módulos do fluxo clínico."
         },
         TELECONSULTANT: {
           title: "Painel da teleconsultoria",
-          subtitle: "Nova pagina de trabalho com novos casos, resposta e chat."
+          subtitle: "Nova página de trabalho com novos casos, resposta e conversa."
         },
         PATHOLOGIST: {
           title: "Painel da patologia",
-          subtitle: "Nova pagina com casos completos, laudo histopatologico e chat."
+          subtitle: "Nova página com casos completos, laudo histopatológico e conversa."
         },
         REGULATOR: {
-          title: "Painel da regulacao",
-          subtitle: "Nova pagina com os casos suspeitos detalhados."
+          title: "Painel da regulação",
+          subtitle: "Nova página com os casos suspeitos detalhados."
         }
       };
       const heading = byRole[role] || byRole.DENTIST;
@@ -830,6 +934,10 @@
       if ($("screenContext")) $("screenContext").textContent = meta.context;
       if ($("screenMetaPage")) $("screenMetaPage").textContent = meta.title;
       updateWorkspaceHeading(role, page);
+
+      if (role && page === "pathology" && (role === "PATHOLOGIST" || role === "ADMIN")) {
+        loadPathologistCases(false);
+      }
     }
 
     function goToAuth() {
@@ -852,14 +960,14 @@
       if ($("publicDashboard")) {
         document.getElementById("publicDashboard").scrollIntoView({ behavior: "smooth", block: "start" });
       }
-      loadDashboard();
+      loadDashboard(false);
     }
 
     function goToCases() {
       const me = getCurrentRole();
       if (!me) {
         goToAuth();
-        showMessage("Faça login para acessar os módulos de casos.", "error");
+        showMessage("Faça acesso para entrar nos módulos de casos.", "error");
         return;
       }
       openWorkspace();
@@ -870,7 +978,7 @@
       const me = getCurrentRole();
       if (!me) {
         goToAuth();
-        showMessage("Faça login para acessar a teleconsultoria.", "error");
+        showMessage("Faça acesso para entrar na teleconsultoria.", "error");
         return;
       }
       openWorkspace();
@@ -889,7 +997,7 @@
       const me = getCurrentRole();
       if (!me) {
         goToAuth();
-        showMessage("Faça login para acessar o chat do caso.", "error");
+        showMessage("Faça acesso para entrar na conversa do caso.", "error");
         return;
       }
       openWorkspace();
@@ -900,7 +1008,7 @@
       const me = getCurrentRole();
       if (!me) {
         goToAuth();
-        showMessage("Faça login para acessar as notificações.", "error");
+        showMessage("Faça acesso para entrar nas notificações.", "error");
         return;
       }
       openWorkspace();
@@ -911,7 +1019,7 @@
       const me = getCurrentRole();
       if (!me) {
         goToAuth();
-        showMessage("Faça login para acessar a regulação.", "error");
+        showMessage("Faça acesso para entrar na regulação.", "error");
         return;
       }
       openWorkspace();
@@ -920,7 +1028,7 @@
 
     function updateSession(me) {
       currentUser = me || null;
-      $("sessionState").textContent = me ? "Sessao ativa" : "Aguardando login";
+      $("sessionState").textContent = me ? "Sessão ativa" : "Aguardando acesso";
       $("meEmail").textContent = me?.email || "-";
       $("meRole").textContent = getRoleLabel(me?.role);
       updateDockForRole(me?.role || null);
@@ -951,11 +1059,11 @@
       }
 
       const guideByRole = {
-        DENTIST: "Fluxo sugerido: relatar caso, anexar arquivos, submeter, acompanhar notificacoes e conversar pelo chat.",
-        TELECONSULTANT: "Fluxo sugerido: pegar o proximo caso, revisar detalhes, responder a teleconsultoria e acompanhar o chat.",
-        PATHOLOGIST: "Fluxo sugerido: abrir casos pelo nome do paciente, revisar o caso completo, enviar o laudo histopatológico e acompanhar o chat.",
-        REGULATOR: "Fluxo sugerido: consultar a fila regulatoria, assumir casos suspeitos e concluir a telerregulacao.",
-        ADMIN: "Fluxo ampliado: acesso tecnico aos modulos principais para suporte e auditoria do fluxo."
+        DENTIST: "Fluxo sugerido: relatar caso, anexar arquivos, submeter, acompanhar notificações e conversar pelo módulo de conversa.",
+        TELECONSULTANT: "Fluxo sugerido: pegar o próximo caso, revisar detalhes, responder a teleconsultoria e acompanhar o módulo de conversa.",
+        PATHOLOGIST: "Fluxo sugerido: abrir casos pelo nome do paciente, revisar o caso completo, enviar o laudo histopatológico e acompanhar o módulo de conversa.",
+        REGULATOR: "Fluxo sugerido: consultar a fila regulatória, assumir casos suspeitos e concluir a telerregulação.",
+        ADMIN: "Fluxo ampliado: acesso técnico aos módulos principais para suporte e auditoria do fluxo."
       };
 
       guide.textContent = guideByRole[role] || "Fluxo carregado conforme o perfil autenticado.";
@@ -968,7 +1076,7 @@
       const statusMap = {
         draft: "Rascunho",
         submitted: "Submetido",
-        assigned: "Em analise",
+        assigned: "Em revisão",
         answered: "Respondido",
         closed: "Fechado"
       };
@@ -990,12 +1098,34 @@
       }
     }
 
+    function formatNotificationOption(notification) {
+      const patient = notification?.patient_name || (notification?.case_id ? `Caso #${notification.case_id}` : "Sem caso");
+      const status = notification?.is_read ? "lida" : "não lida";
+      const date = formatDateTime(notification?.created_at);
+      return `${patient} • ${status} • ${date}`;
+    }
+
+    function populateNotificationSelect(notifications) {
+      const select = $("notification_select");
+      if (!select) return;
+      const previous = select.value;
+      const options = [`<option value="">Selecione um paciente</option>`];
+      (notifications || []).forEach((item) => {
+        options.push(`<option value="${escapeHtml(item.id)}">${escapeHtml(formatNotificationOption(item))}</option>`);
+      });
+      select.innerHTML = options.join("");
+      if ((notifications || []).some((item) => String(item.id) === String(previous))) {
+        select.value = previous;
+      }
+    }
+
     function setCaseSelection(id) {
       if (!id) return;
       $("case_lookup_id").value = id;
       $("chat_case_id").value = id;
       $("tele_case_id").value = id;
       $("reg_case_id").value = id;
+      $("path_case_id").value = id;
       ["case_lookup_select", "chat_case_select", "tele_case_select", "reg_case_select"].forEach((selectId) => {
         const select = $(selectId);
         if (select && Array.from(select.options).some((option) => option.value === String(id))) {
@@ -1039,8 +1169,8 @@
     function doLogout() {
       localStorage.removeItem(TOKEN_KEY);
       updateSession(null);
-      showMessage("Sessao encerrada.", "success");
-      showResult("Sessao encerrada. Faca login novamente para continuar.");
+      showMessage("Sessão encerrada.", "success");
+      showResult("Sessão encerrada. Faça acesso novamente para continuar.");
       switchTab("login");
     }
 
@@ -1077,16 +1207,16 @@
       try {
         const me = await apiFetch("/auth/me");
         updateSession(me);
-        showMessage("Sessao atualizada com sucesso.", "success");
+        showMessage("Sessão atualizada com sucesso.", "success");
         showResult(me);
       } catch (error) {
         updateSession(null);
-        showMessage(error.message || "Falha ao carregar a sessao.", "error");
+        showMessage(error.message || "Falha ao carregar a sessão.", "error");
         showResult(String(error.message || error));
       }
     }
 
-    async function loadDashboard() {
+    async function loadDashboard(showFeedback = true) {
       try {
         const [summary, openClosed, byState] = await Promise.all([
           apiFetch("/dashboard/summary"),
@@ -1096,18 +1226,46 @@
 
         setText("dash_since", summary?.since ? formatDateTime(summary.since) : "-");
         setText("dash_total", summary?.total ?? 0);
-        setText("dash_draft", summary?.by_status?.draft ?? 0);
-        setText("dash_submitted", summary?.by_status?.submitted ?? 0);
-        setText("dash_assigned", summary?.by_status?.assigned ?? 0);
-        setText("dash_answered", summary?.by_status?.answered ?? 0);
-        setText("dash_closed", summary?.by_status?.closed ?? 0);
+        setText("dash_suspected", summary?.suspected_cases ?? 0);
+        setText("dash_avg_age", summary?.avg_patient_age == null ? "-" : Number(summary.avg_patient_age).toFixed(1));
+        setText("dash_professionals_total", summary?.professionals_total ?? 0);
+        setText("dash_teleconsultants_total", summary?.teleconsultants_total ?? 0);
 
-        showMessage("Dashboard atualizado com sucesso.", "success");
+        const byRole = summary?.professionals_by_role || {};
+        setText("dash_role_dentist", byRole.DENTIST ?? 0);
+        setText("dash_role_pathologist", byRole.PATHOLOGIST ?? 0);
+        setText("dash_role_regulator", byRole.REGULATOR ?? 0);
+
+        const bySex = summary?.by_sex || {};
+        const sexLine = [
+          `F: ${bySex.F ?? 0}`,
+          `M: ${bySex.M ?? 0}`,
+          `Outros: ${Object.entries(bySex)
+            .filter(([k]) => k !== "F" && k !== "M")
+            .reduce((acc, [, v]) => acc + Number(v || 0), 0)}`,
+        ].join(" | ");
+        setText("dash_by_sex", sexLine);
+
+        const byStateRows = (byState || []).slice(0, 10).map((item) => ({
+          label: item?.state || "-",
+          value: Number(item?.count || 0),
+        }));
+        renderMiniChart("dash_by_state_chart", byStateRows, "Sem dados de estado no período selecionado.");
+
+        if (showFeedback) showMessage("Painel atualizado com sucesso.", "success");
         showResult({ summary, openClosed, byState });
       } catch (error) {
-        showMessage(error.message || "Falha ao carregar o dashboard.", "error");
+        showMessage(error.message || "Falha ao carregar o painel.", "error");
         showResult(String(error.message || error));
       }
+    }
+
+    function startDashboardAutoRefresh() {
+      if (dashboardAutoRefreshTimer) clearInterval(dashboardAutoRefreshTimer);
+      dashboardAutoRefreshTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadDashboard(false);
+      }, 30000);
     }
 
     function buildCasePayload() {
@@ -1138,25 +1296,25 @@
 
     function validateCasePayload(payload) {
       const required = [
-        ["dentist_state", "UF do servico"],
-        ["dentist_municipality", "Municipio do servico"],
-        ["unit_name", "Unidade / servico"],
+        ["dentist_state", "UF do serviço"],
+        ["dentist_municipality", "Município do serviço"],
+        ["unit_name", "Unidade / serviço"],
         ["patient_name", "Paciente"],
-        ["sus_card", "Cartao SUS"],
+        ["sus_card", "Cartão SUS"],
         ["patient_phone", "Telefone do paciente"],
         ["patient_sex", "Sexo"],
-        ["patient_city", "Municipio do paciente"],
+        ["patient_city", "Município do paciente"],
         ["patient_state", "UF do paciente"],
         ["chief_complaint", "Queixa principal"],
-        ["hpi", "Historia da doenca atual"],
-        ["medical_history", "Historia medica"],
-        ["dental_history", "Historia odontologica"],
-        ["habits", "Habitos"],
-        ["meds_history", "Medicacoes"],
+        ["hpi", "História da doença atual"],
+        ["medical_history", "História médica"],
+        ["dental_history", "História odontológica"],
+        ["habits", "Hábitos"],
+        ["meds_history", "Medicações"],
         ["vitals", "Sinais vitais e achados gerais"],
-        ["oral_description", "Descricao clinica oral"],
-        ["dentist_hypotheses", "Hipoteses diagnosticas"],
-        ["lesion_topography", "Topografia da lesao"]
+        ["oral_description", "Descrição clínica oral"],
+        ["dentist_hypotheses", "Hipóteses diagnósticas"],
+        ["lesion_topography", "Topografia da lesão"]
       ];
 
       for (const [key, label] of required) {
@@ -1164,7 +1322,7 @@
       }
 
       if (!Number.isInteger(payload.patient_age) || payload.patient_age <= 0) {
-        throw new Error("Informe uma idade valida.");
+        throw new Error("Informe uma idade válida.");
       }
 
       if (payload.dentist_state.length !== 2 || payload.patient_state.length !== 2) {
@@ -1181,7 +1339,7 @@
           "case_create_media_file_4"
         ]);
         if (shouldSubmit && !files.length) {
-          throw new Error("Anexe ao menos uma midia antes de criar e submeter o caso.");
+          throw new Error("Anexe ao menos uma mídia antes de criar e submeter o caso.");
         }
 
         const payload = buildCasePayload();
@@ -1191,7 +1349,7 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
-        const selectedMediaTypes = getSelectedValues("case_create_media_type");
+        const selectedMediaTypes = getCheckedValues("case_create_media_type");
         if (created && created.id) {
           setCaseSelection(created.id);
         }
@@ -1211,8 +1369,8 @@
         await loadMyCases(false);
         showMessage(
           shouldSubmit
-            ? (files.length ? "Caso criado, midias anexadas e submetido com sucesso." : "Caso criado e submetido com sucesso.")
-            : (files.length ? "Caso criado e midias anexadas com sucesso." : "Caso criado com sucesso."),
+            ? (files.length ? "Caso criado, mídias anexadas e submetido com sucesso." : "Caso criado e submetido com sucesso.")
+            : (files.length ? "Caso criado e mídias anexadas com sucesso." : "Caso criado com sucesso."),
           "success"
         );
         showResult(finalCase);
@@ -1284,14 +1442,14 @@
     async function loadCaseMessages() {
       try {
         const id = Number($("chat_case_id").value || $("case_lookup_id").value);
-        if (!id) throw new Error("Informe um ID de caso valido para o chat.");
+        if (!id) throw new Error("Informe um ID de caso valido para a conversa.");
         $("chat_case_id").value = id;
         const messages = await apiFetch("/cases/" + id + "/messages");
         renderChatMessages(messages);
-        showMessage("Chat atualizado com sucesso.", "success");
+        showMessage("Conversa atualizada com sucesso.", "success");
         showResult(messages);
       } catch (error) {
-        showMessage(error.message || "Falha ao carregar o chat.", "error");
+        showMessage(error.message || "Falha ao carregar a conversa.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1299,7 +1457,7 @@
     async function sendCaseMessage() {
       try {
         const id = Number($("chat_case_id").value || $("case_lookup_id").value);
-        if (!id) throw new Error("Informe um ID de caso valido para o chat.");
+        if (!id) throw new Error("Informe um ID de caso valido para a conversa.");
         const message = $("chat_message").value.trim();
         if (message.length < 2) throw new Error("Escreva uma mensagem com pelo menos 2 caracteres.");
         $("chat_case_id").value = id;
@@ -1310,7 +1468,7 @@
         });
         $("chat_message").value = "";
         await loadCaseMessages();
-        showMessage("Acao bem-sucedida: mensagem enviada com sucesso.", "success");
+        showMessage("Ação bem-sucedida: mensagem enviada com sucesso.", "success");
         showResult(created);
       } catch (error) {
         showMessage(error.message || "Falha ao enviar a mensagem.", "error");
@@ -1318,37 +1476,42 @@
       }
     }
 
-    async function loadNotifications() {
+    async function loadNotifications(showFeedback = true) {
       try {
         const notifications = await apiFetch("/notifications/mine");
+        notificationsCache = notifications;
+        populateNotificationSelect(notifications);
         renderTimeline(
           "case_ctx_notifications",
           notifications.slice(0, 5).map((item) => ({
-            meta: `${item.notification_type} • ${item.is_read ? "lida" : "nao lida"}`,
+            meta: `${item.notification_type} • ${item.is_read ? "lida" : "não lida"}`,
             title: item.title,
             body: item.body,
           })),
-          "Nenhuma notificacao encontrada."
+          "Nenhuma notificação encontrada."
         );
-        showMessage("Notificacoes atualizadas.", "success");
+        if (showFeedback) showMessage("Notificações atualizadas.", "success");
         showResult(notifications);
       } catch (error) {
-        showMessage(error.message || "Falha ao carregar notificacoes.", "error");
+        showMessage(error.message || "Falha ao carregar notificações.", "error");
         showResult(String(error.message || error));
       }
     }
 
     async function markNotificationRead() {
       try {
-        const id = Number($("notification_id").value);
-        if (!id) throw new Error("Informe um ID de notificacao valido.");
+        const id = Number($("notification_select").value);
+        if (!id) throw new Error("Selecione uma notificação pelo nome do paciente.");
         const updated = await apiFetch("/notifications/" + id + "/read", {
           method: "POST"
         });
-        showMessage("Notificacao marcada como lida.", "success");
+        notificationsCache = notificationsCache.map((item) => (item.id === id ? { ...item, ...updated } : item));
+        populateNotificationSelect(notificationsCache);
+        await loadNotifications(false);
+        showMessage("Notificação marcada como lida.", "success");
         showResult(updated);
       } catch (error) {
-        showMessage(error.message || "Falha ao atualizar a notificacao.", "error");
+        showMessage(error.message || "Falha ao atualizar a notificação.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1368,10 +1531,10 @@
 
     function validateTeleAnswerPayload(payload) {
       const required = [
-        ["clinical_description", "Descricao clinica / sintese do caso"],
-        ["justified_hypotheses", "Hipoteses diagnosticas justificadas"],
-        ["clinical_conduct", "Conduta clinica"],
-        ["care_coordination", "Coordenacao do cuidado"]
+        ["clinical_description", "Descrição clínica / síntese do caso"],
+        ["justified_hypotheses", "Hipóteses diagnósticas justificadas"],
+        ["clinical_conduct", "Conduta clínica"],
+        ["care_coordination", "Coordenação do cuidado"]
       ];
 
       for (const [key, label] of required) {
@@ -1390,10 +1553,10 @@
           fillRegulationCaseContext(data);
           await teleMyCases(false);
         }
-        showMessage(data ? "Caso atribuido com sucesso." : "Nenhum caso disponivel na fila.", "success");
-        showResult(data || "Nenhum caso disponivel.");
+        showMessage(data ? "Caso atribuído com sucesso." : "Nenhum caso disponível na fila.", "success");
+        showResult(data || "Nenhum caso disponível.");
       } catch (error) {
-        showMessage(error.message || "Falha ao buscar o proximo caso.", "error");
+        showMessage(error.message || "Falha ao buscar o próximo caso.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1403,11 +1566,11 @@
         const data = await apiFetch("/teleconsultor/my-cases");
         populateCaseSelect("tele_case_select", data, "Selecione um caso");
         populateCaseSelect("chat_case_select", data, "Selecione um caso");
-        if (showFeedback) showMessage("Casos atribuidos atualizados.", "success");
+        if (showFeedback) showMessage("Casos atribuídos atualizados.", "success");
         showResult(data);
         return data;
       } catch (error) {
-        showMessage(error.message || "Falha ao carregar casos atribuidos.", "error");
+        showMessage(error.message || "Falha ao carregar casos atribuídos.", "error");
         showResult(String(error.message || error));
         return [];
       }
@@ -1440,7 +1603,7 @@
           body: JSON.stringify(payload)
         });
         setCaseSelection(id);
-        showMessage("Acao bem-sucedida: resposta da teleconsultoria enviada com sucesso.", "success");
+        showMessage("Ação bem-sucedida: resposta da teleconsultoria enviada com sucesso.", "success");
         showResult(data);
       } catch (error) {
         showMessage(error.message || "Falha ao enviar a resposta da teleconsultoria.", "error");
@@ -1465,7 +1628,7 @@
 
     async function loadPathologyCaseContext() {
       try {
-        const id = Number($("path_case_id").value || $("case_lookup_id").value);
+        const id = Number($("path_case_select").value || $("path_case_id").value || $("case_lookup_id").value);
         if (!id) throw new Error("Informe um ID de caso valido.");
         const data = await apiFetch("/pathologist/cases/" + id);
         fillPathologyCaseContext(data);
@@ -1478,27 +1641,83 @@
       }
     }
 
-    async function submitPathologyReport() {
+    async function submitPathologyReport(isEdit = false) {
       try {
         const id = Number($("path_case_id").value || $("case_lookup_id").value);
         if (!id) throw new Error("Informe um ID de caso valido.");
-        const diagnosis = $("path_diagnosis").value.trim();
+        const diagnosisInput = $("path_diagnosis").value.trim();
         const report = $("path_report").value.trim();
-        if (diagnosis.length < 3) throw new Error("Informe o diagnostico histopatologico.");
-        if (report.length < 3) throw new Error("Informe o laudo histopatologico.");
-        const data = await apiFetch("/pathologist/cases/" + id + "/report", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ diagnosis, report })
-        });
+        const fileInput = $("path_report_file");
+        const file = fileInput?.files?.[0] || null;
+
+        if (report && report.length < 3) throw new Error("Informe o laudo histopatológico com pelo menos 3 caracteres.");
+        if (diagnosisInput && diagnosisInput.length < 3) throw new Error("Informe o diagnóstico com pelo menos 3 caracteres.");
+        if (isEdit) {
+          if (!diagnosisInput && !report && !file) throw new Error("Informe ao menos diagnóstico, laudo ou arquivo para editar.");
+        } else if (!report && !file) {
+          throw new Error("Informe o laudo escrito ou selecione um arquivo para envio.");
+        }
+
+        let data = null;
+        let sentReport = false;
+        let sentFile = false;
+
+        if (isEdit) {
+          const payload = {};
+          if (diagnosisInput) payload.diagnosis = diagnosisInput;
+          if (report) payload.report = report;
+          if (Object.keys(payload).length) {
+            data = await apiFetch("/pathologist/cases/" + id + "/report", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload)
+            });
+            sentReport = true;
+          }
+        } else if (report) {
+          const diagnosis = diagnosisInput.length >= 3 ? diagnosisInput : report;
+          data = await apiFetch("/pathologist/cases/" + id + "/report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ diagnosis, report })
+          });
+          sentReport = true;
+        }
+
+        if (file) {
+          await uploadSingleMedia(id, "exam", file);
+          sentFile = true;
+          if (fileInput) fileInput.value = "";
+        }
+
+        if (!data || sentFile) {
+          data = await apiFetch("/pathologist/cases/" + id);
+        }
+
         setCaseSelection(id);
         fillPathologyCaseContext(data);
-        showMessage("Laudo histopatologico enviado com sucesso.", "success");
+        if (isEdit && sentReport && sentFile) {
+          showMessage("Laudo e arquivo atualizados com sucesso.", "success");
+        } else if (isEdit && sentReport) {
+          showMessage("Laudo atualizado com sucesso.", "success");
+        } else if (isEdit && sentFile) {
+          showMessage("Arquivo do laudo atualizado com sucesso.", "success");
+        } else if (sentReport && sentFile) {
+          showMessage("Laudo textual e arquivo enviados com sucesso.", "success");
+        } else if (sentFile) {
+          showMessage("Arquivo do laudo enviado com sucesso.", "success");
+        } else {
+          showMessage("Laudo histopatológico enviado com sucesso.", "success");
+        }
         showResult(data);
       } catch (error) {
-        showMessage(error.message || "Falha ao enviar o laudo histopatologico.", "error");
+        showMessage(error.message || "Falha ao enviar o laudo histopatológico.", "error");
         showResult(String(error.message || error));
       }
+    }
+
+    async function updatePathologyReport() {
+      return submitPathologyReport(true);
     }
 
     async function loadRegulationQueue(showFeedback = true) {
@@ -1506,11 +1725,11 @@
         const data = await apiFetch("/regulator/queue");
         populateCaseSelect("reg_case_select", data, "Selecione um caso suspeito");
         populateCaseSelect("chat_case_select", data, "Selecione um caso");
-        if (showFeedback) showMessage("Fila regulatoria atualizada.", "success");
+        if (showFeedback) showMessage("Fila regulatória atualizada.", "success");
         showResult(data);
         return data;
       } catch (error) {
-        showMessage(error.message || "Falha ao carregar a fila regulatoria.", "error");
+        showMessage(error.message || "Falha ao carregar a fila regulatória.", "error");
         showResult(String(error.message || error));
         return [];
       }
@@ -1523,10 +1742,10 @@
         const data = await apiFetch("/cases/" + id);
         fillRegulationCaseContext(data);
         setCaseSelection(id);
-        showMessage("Caso carregado para telerregulacao.", "success");
+        showMessage("Caso carregado para telerregulação.", "success");
         showResult(data);
       } catch (error) {
-        showMessage(error.message || "Falha ao carregar o caso regulatorio.", "error");
+        showMessage(error.message || "Falha ao carregar o caso regulatório.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1541,10 +1760,10 @@
         setCaseSelection(id);
         fillRegulationCaseContext(data);
         await loadRegulationQueue(false);
-        showMessage("Caso assumido para telerregulacao.", "success");
+        showMessage("Caso assumido para telerregulação.", "success");
         showResult(data);
       } catch (error) {
-        showMessage(error.message || "Falha ao assumir o caso regulatorio.", "error");
+        showMessage(error.message || "Falha ao assumir o caso regulatório.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1554,19 +1773,21 @@
         const id = Number($("reg_case_id").value || $("case_lookup_id").value);
         if (!id) throw new Error("Informe um ID de caso valido.");
         const notes = $("reg_notes").value.trim();
-        if (notes.length < 3) throw new Error("Preencha as notas regulatorias.");
+        if (notes.length < 3) throw new Error("Preencha as notas regulatórias.");
         const regulationStatus = finalize ? "completed" : "in_review";
         const microscopicReportDate = $("reg_microscopic_report_date").value || null;
         const followup1m = $("reg_followup_1m").value;
         const followup3m = $("reg_followup_3m").value;
         const followup6mStatus = $("reg_followup_6m_status").value.trim();
+        const followup1yStatus = $("reg_followup_1y_status").value.trim();
         const followupBarriers = $("reg_followup_barriers").value.trim();
 
         if (finalize) {
-          if (!microscopicReportDate) throw new Error("Informe a data do laudo microscopico.");
-          if (followup1m === "") throw new Error("Informe o acompanhamento de 1 mes.");
+          if (!microscopicReportDate) throw new Error("Informe a data do laudo histopatológico.");
+          if (followup1m === "") throw new Error("Informe o acompanhamento de 1 mês.");
           if (followup3m === "") throw new Error("Informe o acompanhamento de 3 meses.");
           if (followup6mStatus.length < 3) throw new Error("Descreva o acompanhamento de 6 meses.");
+          if (followup1yStatus.length < 3) throw new Error("Descreva o acompanhamento de 1 ano.");
           if (followupBarriers.length < 3) throw new Error("Descreva as principais barreiras.");
         }
 
@@ -1580,6 +1801,7 @@
             followup_1m_head_neck_seen: followup1m === "" ? null : followup1m === "true",
             followup_3m_initial_treatment_done: followup3m === "" ? null : followup3m === "true",
             followup_6m_status: followup6mStatus || null,
+            followup_1y_status: followup1yStatus || null,
             followup_main_barriers: followupBarriers || null,
           })
         });
@@ -1587,13 +1809,13 @@
         fillRegulationCaseContext(data);
         showMessage(
           finalize
-            ? "Acao bem-sucedida: telerregulacao concluida com sucesso."
-            : "Acao bem-sucedida: atualizacao da regulacao salva (em analise).",
+            ? "Ação bem-sucedida: telerregulação concluída com sucesso."
+            : "Ação bem-sucedida: atualização da regulação salva (em análise).",
           "success"
         );
         showResult(data);
       } catch (error) {
-        showMessage(error.message || "Falha ao salvar a regulacao.", "error");
+        showMessage(error.message || "Falha ao salvar a regulação.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1628,13 +1850,13 @@
         if (!email) throw new Error("Informe o e-mail.");
         if (password.length < 6) throw new Error("A senha deve ter pelo menos 6 caracteres.");
         if (phone.length < 8) throw new Error("Informe o telefone.");
-        if (!Number.isInteger(age) || age < 18) throw new Error("Informe uma idade valida.");
+        if (!Number.isInteger(age) || age < 18) throw new Error("Informe uma idade válida.");
         if (!sex) throw new Error("Selecione o sexo.");
         if (address.length < 5) throw new Error("Informe o endereco.");
-        if (municipality.length < 2) throw new Error("Informe o municipio.");
+        if (municipality.length < 2) throw new Error("Informe o município.");
         if (state.length !== 2) throw new Error("Informe a UF com 2 letras.");
-        if (council_number.length < 2) throw new Error("Informe o numero no conselho profissional.");
-        if (profession.length < 2) throw new Error("Informe a profissao.");
+        if (council_number.length < 2) throw new Error("Informe o número no conselho profissional.");
+        if (profession.length < 2) throw new Error("Informe a profissão.");
         if (unit_name.length < 2) throw new Error("Informe a unidade de atendimento.");
         if (has_specialization && specialization.length < 2) throw new Error("Informe a especialidade.");
         if (!role) throw new Error("Selecione o perfil de acesso.");
@@ -1698,12 +1920,12 @@
 
         const loginData = await response.json().catch(() => ({}));
         if (!response.ok) {
-          throw new Error(loginData.detail || "Falha no login.");
+          throw new Error(loginData.detail || "Falha no acesso.");
         }
 
         localStorage.setItem(TOKEN_KEY, loginData.access_token);
         const me = await apiFetch("/auth/me");
-        showMessage(`Login realizado com sucesso como ${getRoleLabel(me.role)}.`, "success");
+        showMessage(`Acesso realizado com sucesso como ${getRoleLabel(me.role)}.`, "success");
         showResult({ token: loginData, me });
         updateSession(me);
         if (me.role === "DENTIST" || me.role === "ADMIN") {
@@ -1716,7 +1938,7 @@
           await loadRegulationQueue(false);
         }
       } catch (error) {
-        showMessage(error.message || "Falha no login.", "error");
+        showMessage(error.message || "Falha no acesso.", "error");
         showResult(String(error.message || error));
       }
     }
@@ -1731,7 +1953,6 @@
     bindEnter("case_lookup_id", loadCaseById);
     bindEnter("chat_case_id", loadCaseMessages);
     bindEnter("chat_message", sendCaseMessage);
-    bindEnter("notification_id", markNotificationRead);
     bindEnter("tele_case_id", teleAnswerCase);
     bindEnter("reg_case_id", takeRegulationCase);
     switchTab("login");
@@ -1739,5 +1960,6 @@
     if (localStorage.getItem(TOKEN_KEY)) {
       loadSession();
     } else {
-      loadDashboard();
+      loadDashboard(false);
     }
+    startDashboardAutoRefresh();

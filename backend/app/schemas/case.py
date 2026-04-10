@@ -70,6 +70,7 @@ class MediaOut(BaseModel):
 
     id: int
     uploaded_at: datetime
+    uploader_user_id: int | None = None
     media_type: MediaType
     file_path: str
     original_filename: str | None = None
@@ -163,6 +164,7 @@ class CaseOut(BaseModel):
     followup_1m_head_neck_seen: bool | None = None
     followup_3m_initial_treatment_done: bool | None = None
     followup_6m_status: str | None = None
+    followup_1y_status: str | None = None
     followup_main_barriers: str | None = None
     pathology_diagnosis: str | None = None
     pathology_report: str | None = None

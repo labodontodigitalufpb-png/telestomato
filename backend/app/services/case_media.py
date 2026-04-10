@@ -7,7 +7,7 @@ import uuid
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.models.case import ClinicalCase
+from app.models.case import ClinicalCase, CaseStatus
 from app.models.media import CaseMedia, MediaType
 from app.models.user import User
 
@@ -53,7 +53,17 @@ def get_case_or_404(db: Session, case_id: int) -> ClinicalCase:
 
 
 def ensure_media_upload_permission(case: ClinicalCase, current_user: User) -> None:
-    if role_str(current_user) != "ADMIN" and case.dentist_user_id != current_user.id:
+    role = role_str(current_user)
+    if role == "ADMIN":
+        return
+    if case.dentist_user_id == current_user.id:
+        return
+    if role == "PATHOLOGIST" and case.status != CaseStatus.draft:
+        if case.pathologist_user_id is None:
+            case.pathologist_user_id = current_user.id
+        return
+
+    if role != "ADMIN" and case.dentist_user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sem permissão para anexar mídia neste caso",
@@ -92,6 +102,7 @@ def create_media_record(
     db: Session,
     *,
     case_id: int,
+    uploader_user_id: int | None,
     media_type: MediaType,
     file_path: str,
     original_filename: str | None,
@@ -99,6 +110,7 @@ def create_media_record(
 ) -> CaseMedia:
     media = CaseMedia(
         case_id=case_id,
+        uploader_user_id=uploader_user_id,
         media_type=media_type,
         file_path=file_path,
         original_filename=original_filename,
@@ -113,6 +125,7 @@ def media_to_dict(media: CaseMedia) -> dict:
     return {
         "id": media.id,
         "case_id": media.case_id,
+        "uploader_user_id": media.uploader_user_id,
         "media_type": media.media_type.value,
         "file_path": media.file_path,
         "original_filename": media.original_filename,

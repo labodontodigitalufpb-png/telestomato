@@ -25,9 +25,9 @@ def upsert_my_profile(payload: ProfileCreate, db: Session = Depends(get_db), cur
 
     if role == "TELECONSULTANT":
         if not payload.teleconsultant_state:
-            raise HTTPException(status_code=400, detail="Teleconsultor precisa informar teleconsultant_state (UF).")
+            raise HTTPException(status_code=400, detail="Teleconsultor precisa informar a UF de atuação.")
         if not payload.teleconsultant_certificate_url:
-            raise HTTPException(status_code=400, detail="Teleconsultor precisa informar teleconsultant_certificate_url.")
+            raise HTTPException(status_code=400, detail="Teleconsultor precisa informar a URL do certificado.")
 
     profile = db.query(ProfessionalProfile).filter(ProfessionalProfile.user_id == current_user.id).first()
     if not profile:

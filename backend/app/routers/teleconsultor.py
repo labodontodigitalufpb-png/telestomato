@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy import func
 
 from app.core.db import get_db
@@ -39,6 +39,7 @@ def my_cases(
 
     q = (
         db.query(ClinicalCase)
+        .options(selectinload(ClinicalCase.media))
         .filter(ClinicalCase.assigned_to_user_id == current_user.id)
         .order_by(ClinicalCase.assigned_at.desc().nullslast(), ClinicalCase.created_at.desc())
     )
@@ -58,6 +59,7 @@ def next_case(
 
     case = (
         db.query(ClinicalCase)
+        .options(selectinload(ClinicalCase.media))
         .filter(ClinicalCase.status == CaseStatus.submitted)
         .filter(ClinicalCase.assigned_to_user_id.is_(None))
         .order_by(ClinicalCase.submitted_at.asc().nullslast(), ClinicalCase.created_at.asc())
@@ -96,7 +98,12 @@ def answer_case(
     """
     require_teleconsultor(current_user)
 
-    case = db.query(ClinicalCase).filter(ClinicalCase.id == case_id).first()
+    case = (
+        db.query(ClinicalCase)
+        .options(selectinload(ClinicalCase.media))
+        .filter(ClinicalCase.id == case_id)
+        .first()
+    )
     if not case:
         raise HTTPException(status_code=404, detail="Caso não encontrado")
 

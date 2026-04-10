@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -17,6 +17,7 @@ pwd_context = CryptContext(
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 ALGORITHM = getattr(settings, "ALGORITHM", "HS256")
 
 
@@ -54,10 +55,7 @@ def decode_token(token: str) -> str:
     return sub
 
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db),
-) -> User:
+def _resolve_user_from_token(token: str, db: Session) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Não foi possível validar as credenciais",
@@ -77,6 +75,39 @@ def get_current_user(
         raise credentials_exception
 
     return user
+
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+) -> User:
+    return _resolve_user_from_token(token, db)
+
+
+def get_current_user_optional(
+    token: str | None = Depends(oauth2_scheme_optional),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not token:
+        return None
+    return _resolve_user_from_token(token, db)
+
+
+def get_current_user_from_header_or_query(
+    current_user: User | None = Depends(get_current_user_optional),
+    token: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> User:
+    if current_user is not None:
+        return current_user
+    if token:
+        return _resolve_user_from_token(token, db)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Não foi possível validar as credenciais",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def verify_and_upgrade_password(db: Session, user: User, password: str) -> bool:

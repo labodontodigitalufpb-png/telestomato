@@ -29,7 +29,7 @@ def upgrade() -> None:
     op.add_column("clinical_cases", sa.Column("consultant_hypothesis", sa.String(length=200), nullable=True))
     op.add_column(
         "clinical_cases",
-        sa.Column("consultant_is_malignant", sa.Boolean(), nullable=False, server_default=sa.text("0")),
+        sa.Column("consultant_is_malignant", sa.Boolean(), nullable=False, server_default=sa.text("false")),
     )
     op.add_column("clinical_cases", sa.Column("assigned_to_user_id", sa.Integer(), nullable=True))
     op.add_column("clinical_cases", sa.Column("submitted_at", sa.DateTime(), nullable=True))

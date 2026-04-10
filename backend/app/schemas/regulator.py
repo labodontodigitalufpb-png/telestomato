@@ -12,6 +12,7 @@ class RegulationUpdate(BaseModel):
     followup_1m_head_neck_seen: bool | None = None
     followup_3m_initial_treatment_done: bool | None = None
     followup_6m_status: str | None = Field(default=None, min_length=3)
+    followup_1y_status: str | None = Field(default=None, min_length=3)
     followup_main_barriers: str | None = Field(default=None, min_length=3)
 
     @model_validator(mode="after")
@@ -21,19 +22,21 @@ class RegulationUpdate(BaseModel):
 
         missing = []
         if self.microscopic_report_date is None:
-            missing.append("data do laudo microscopico")
+            missing.append("data do laudo histopatológico")
         if self.followup_1m_head_neck_seen is None:
             missing.append("follow-up de 1 mes (cirurgiao de cabeca e pescoco)")
         if self.followup_3m_initial_treatment_done is None:
             missing.append("follow-up de 3 meses (tratamento inicial)")
         if not self.followup_6m_status:
             missing.append("follow-up de 6 meses")
+        if not self.followup_1y_status:
+            missing.append("follow-up de 1 ano")
         if not self.followup_main_barriers:
             missing.append("principais barreiras")
 
         if missing:
             raise ValueError(
-                "Para concluir a regulacao, preencha: " + ", ".join(missing) + "."
+                "Para concluir a regulação, preencha: " + ", ".join(missing) + "."
             )
 
         return self

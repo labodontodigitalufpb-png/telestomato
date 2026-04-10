@@ -26,9 +26,16 @@ class CaseMedia(Base):
         nullable=False,
         index=True,
     )
+    uploader_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     # string para evitar import circular
     case = relationship("ClinicalCase", back_populates="media")
+    uploader = relationship("User", foreign_keys=[uploader_user_id])
 
     media_type = Column(
         Enum(MediaType, name="mediatype"),

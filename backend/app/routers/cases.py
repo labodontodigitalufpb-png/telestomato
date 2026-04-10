@@ -4,15 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from fastapi.responses import FileResponse
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError, ProgrammingError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.db import get_db
 from app.core.schema_guard import get_schema_issue
-from app.security.auth import get_current_user
+from app.security.auth import get_current_user, get_current_user_from_header_or_query
 from app.models.user import User
 from app.models.case import ClinicalCase, CaseStatus
 from app.models.media import CaseMedia
 from app.models.media import MediaType
+from app.models.profile import ProfessionalProfile
 from app.schemas.case import CaseCreate, CaseOut, CaseOutPublic, CaseUpdate
 from app.services.case_media import (
     create_media_record,
@@ -34,6 +35,8 @@ def can_view_case(case: ClinicalCase, user: User) -> bool:
     role = role_str(user)
     if role == "ADMIN":
         return True
+    if role == "PATHOLOGIST" and case.status != CaseStatus.draft:
+        return True
     if case.dentist_user_id == user.id:
         return True
     if case.assigned_to_user_id == user.id:
@@ -41,6 +44,23 @@ def can_view_case(case: ClinicalCase, user: User) -> bool:
     if case.regulator_user_id == user.id:
         return True
     return False
+
+
+def _normalize_state(value: str | None) -> str:
+    return (value or "").strip().upper()
+
+
+def can_regulator_view_case_by_state(db: Session, case: ClinicalCase, user: User) -> bool:
+    regulator_profile = (
+        db.query(ProfessionalProfile)
+        .filter(ProfessionalProfile.user_id == user.id)
+        .first()
+    )
+    regulator_state = _normalize_state(regulator_profile.state if regulator_profile else None)
+    if not regulator_state:
+        return False
+    case_state = _normalize_state(case.patient_state) or _normalize_state(case.dentist_state)
+    return bool(case_state and case_state == regulator_state)
 
 
 @router.post("", response_model=CaseOutPublic)
@@ -92,6 +112,7 @@ def list_my_cases(
 ):
     return (
         db.query(ClinicalCase)
+        .options(selectinload(ClinicalCase.media))
         .filter(ClinicalCase.dentist_user_id == current_user.id)
         .order_by(ClinicalCase.created_at.desc())
         .all()
@@ -104,9 +125,19 @@ def get_case(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    case = get_case_or_404(db, case_id)
+    case = (
+        db.query(ClinicalCase)
+        .options(selectinload(ClinicalCase.media))
+        .filter(ClinicalCase.id == case_id)
+        .first()
+    )
+    if not case:
+        raise HTTPException(status_code=404, detail="Caso não encontrado")
 
-    if not can_view_case(case, current_user):
+    if role_str(current_user) == "REGULATOR":
+        if not can_regulator_view_case_by_state(db, case, current_user):
+            raise HTTPException(status_code=403, detail="Sem permissão para ver este caso")
+    elif not can_view_case(case, current_user):
         raise HTTPException(status_code=403, detail="Sem permissão para ver este caso")
 
     return case
@@ -153,11 +184,14 @@ def get_case_media_file(
     case_id: int,
     media_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user_from_header_or_query),
 ):
     case = get_case_or_404(db, case_id)
 
-    if not can_view_case(case, current_user):
+    if role_str(current_user) == "REGULATOR":
+        if not can_regulator_view_case_by_state(db, case, current_user):
+            raise HTTPException(status_code=403, detail="Sem permissão para ver este caso")
+    elif not can_view_case(case, current_user):
         raise HTTPException(status_code=403, detail="Sem permissão para ver este caso")
 
     media = (
@@ -234,6 +268,7 @@ async def upload_case_media(
     media = create_media_record(
         db,
         case_id=case.id,
+        uploader_user_id=current_user.id,
         media_type=media_type,
         file_path=str(dest),
         original_filename=file.filename,

@@ -46,7 +46,7 @@ def register(
     if requested_role not in PUBLIC_REGISTER_ROLES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Perfil nao permitido no cadastro publico",
+            detail="Perfil não permitido no cadastro público",
         )
 
     user = User(
